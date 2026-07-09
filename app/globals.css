@@ -1,26 +1,46 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+    --font-sans: var(--font-manrope), sans-serif;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+    --color-sunflower-100: #FCC014;
+    --color-sunflower-200: #FDCE63;
+    --color-sunflower-300: #FEDB8F;
+    --color-sunflower-400: #FFE7B7;
+    --color-sunflower-500: #FFF3DB;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+    --color-munsell-blue-100: #059BB5;
+    --color-munsell-blue-200: #57AFC4;
+    --color-munsell-blue-300: #85C3D3;
+    --color-munsell-blue-400: #AFD7E2;
+    --color-munsell-blue-500: #D7EBF0;
+
+    --color-pablano-100: #118217;
+    --color-pablano-200: #509B4E;
+    --color-pablano-300: #7DB47A;
+    --color-pablano-400: #A8CDA6;
+    --color-pablano-500: #D3E6D2;
+
+    --color-cadmium-red-100: #DE0425;
+    --color-cadmium-red-200: #EB5854;
+    --color-cadmium-red-300: #F6867E;
+    --color-cadmium-red-400: #FDB0A8;
+    --color-cadmium-red-500: #FFD7D3;
+
+    --color-matt-black-100: #171515;
+    --color-matt-black-200: #323030;
+    --color-matt-black-300: #6A6868;
+    --color-matt-black-400: #999898;
+    --color-matt-black-500: #CBCACA;
+
+    --color-white-chalk-100: #F5F5F0;
+    --color-white-chalk-200: #F7F7F3;
+    --color-white-chalk-300: #F9F9F6;
+    --color-white-chalk-400: #FBFBF9;
+    --color-white-chalk-500: #FDFDFC;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    font-family: var(--font-manrope), sans-serif;
+    color: var(--color-matt-black-100);
 }
