@@ -16,8 +16,9 @@ export function ProductCard({ product }: Props) {
         <article
             className="
             group
-            w-[210px]
+            w-full
             min-w-[160px]
+            max-w-[195px]
             overflow-hidden
             rounded-[10px]
             border

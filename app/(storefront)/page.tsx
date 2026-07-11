@@ -50,13 +50,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-      {/* Footer */}
-      <div className="flex flex-col items-center justify-center py-16" >
-        <h1>Footer</h1>
-        <div>
-          <p>Footer Copyright</p>
-        </div>
-      </div>
     </div>
   );
 }
