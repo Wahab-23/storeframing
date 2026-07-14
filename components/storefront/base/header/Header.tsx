@@ -1,10 +1,11 @@
 import Image from "next/image";
 import { User, Heart, ShoppingCart } from "lucide-react";
+import Link from "next/link";
 
 import { HeaderData, HeaderActionLink } from "./types";
 import { defaultHeaderData } from "./defaultData";
 import { SearchBar } from "./SearchBar";
-import { MegaMenu } from "./MegaMenu";
+import MegaMenu from "./mega-menu/MegaMenu";
 import { MobileMenu } from "./MobileMenu";
 
 // ─── Action icon map ──────────────────────────────────────────────────────────
@@ -27,16 +28,16 @@ export default function Header({ data }: HeaderProps) {
     const d: HeaderData = { ...defaultHeaderData, ...data };
 
     return (
-        <header className="sticky top-0 z-100 w-full font-sans selection:bg-sunflower-100 selection:text-matt-black-100">
-            {/* ── Row 1: Top Bar ── */}
-            <div className="bg-matt-black-100 border-b border-matt-black-200/60">
+        <header className="contents">
+            {/* ── Row 1: Top Bar (Sticky) ── */}
+            <div className="sticky top-0 z-101 w-full bg-matt-black-100 border-b border-matt-black-200/60 font-sans selection:bg-sunflower-100 selection:text-matt-black-100 shadow-sm">
                 <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center h-14 gap-4 lg:gap-8">
+                    <div className="flex justify-between items-center h-14 gap-4 lg:gap-8">
                         {/* Mobile hamburger */}
                         <MobileMenu navigation={d.navigation} actions={d.actions} />
 
                         {/* Logo */}
-                        <a href="/" className="flex items-center shrink-0">
+                        <Link href="/" className="flex items-center shrink-0">
                             <Image
                                 src={d.logo.src}
                                 alt={d.logo.alt}
@@ -45,7 +46,7 @@ export default function Header({ data }: HeaderProps) {
                                 className="object-contain h-auto w-auto max-h-[32px] lg:max-h-[36px] hover:opacity-90 transition-opacity duration-200"
                                 priority
                             />
-                        </a>
+                        </Link>
 
                         {/* Search bar — hidden on mobile, shown on desktop */}
                         <div className="hidden lg:flex flex-1 justify-center">
@@ -55,7 +56,7 @@ export default function Header({ data }: HeaderProps) {
                         {/* Action icons */}
                         <div className="hidden lg:flex items-center gap-1 ml-auto">
                             {d.actions.map((action) => (
-                                <a
+                                <Link
                                     key={action.label}
                                     href={action.href}
                                     className="group relative flex items-center gap-2 px-3 py-2 rounded-lg text-white-chalk-400 hover:text-sunflower-100 hover:bg-matt-black-200/60 transition-all duration-200"
@@ -72,16 +73,16 @@ export default function Header({ data }: HeaderProps) {
                                     <span className="text-sm font-medium hidden xl:inline">
                                         {action.label}
                                     </span>
-                                </a>
+                                </Link>
                             ))}
                         </div>
 
-                        {/* Mobile: compact action icons (just cart & wishlist) */}
-                        <div className="flex lg:hidden items-center gap-0.5 ml-auto">
+                        {/* Mobile: compact action icons (just cart) */}
+                        <div className="flex lg:hidden items-center gap-0.5">
                             {d.actions
-                                .filter((a) => a.icon !== "user")
+                                .filter((a) => a.icon === "shopping-cart")
                                 .map((action) => (
-                                    <a
+                                    <Link
                                         key={action.label}
                                         href={action.href}
                                         className="relative flex items-center justify-center w-10 h-10 rounded-lg text-white-chalk-400 hover:text-sunflower-100 transition-colors duration-200"
@@ -92,20 +93,20 @@ export default function Header({ data }: HeaderProps) {
                                                 {action.badge > 99 ? "99+" : action.badge}
                                             </span>
                                         )}
-                                    </a>
+                                    </Link>
                                 ))}
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* ── Row 2: Navigation + Megamenu (Desktop only) ── */}
-            <div className="hidden lg:block relative">
+            {/* ── Row 2: Navigation + Megamenu (Desktop only) - Scrolls naturally ── */}
+            <div className="hidden lg:block relative z-100 w-full font-sans">
                 <MegaMenu navigation={d.navigation} />
             </div>
 
-            {/* ── Mobile: Search bar below top bar ── */}
-            <div className="lg:hidden bg-matt-black-100 border-b border-matt-black-200/40 px-4 py-2">
+            {/* ── Mobile: Search bar below top bar - Scrolls naturally ── */}
+            <div className="lg:hidden relative z-100 w-full bg-matt-black-100 px-4 py-2 border-b border-matt-black-200/40 font-sans">
                 <SearchBar placeholder="Search..." />
             </div>
         </header>

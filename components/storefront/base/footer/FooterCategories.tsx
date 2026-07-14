@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { FooterCategory } from "./types";
+import Link from "next/link";
 
 interface FooterCategoriesProps {
   categories: FooterCategory[];
@@ -32,24 +33,22 @@ export function FooterCategories({ categories }: FooterCategoriesProps) {
               <h4 className="text-sunflower-100 font-bold text-base md:text-[17px] tracking-wide w-full flex items-center justify-between">
                 {category.title}
                 <ChevronDown
-                  className={`w-5 h-5 md:hidden transition-transform duration-300 ${
-                    isOpen
+                  className={`w-5 h-5 md:hidden transition-transform duration-300 ${isOpen
                       ? "rotate-180 text-sunflower-100"
                       : "text-white-chalk-400"
-                  }`}
+                    }`}
                 />
               </h4>
             </button>
 
             {/* Links list */}
             <ul
-              className={`mt-4 space-y-2.5 md:block ${
-                isOpen ? "block" : "hidden"
-              }`}
+              className={`mt-4 space-y-2.5 md:block ${isOpen ? "block" : "hidden"
+                }`}
             >
               {category.links.map((link) => (
                 <li key={link.label}>
-                  <a
+                  <Link
                     href={link.href}
                     className="group/item flex items-start gap-1 text-sm text-matt-black-400 hover:text-sunflower-100 transition-all duration-200 hover:translate-x-1"
                   >
@@ -57,7 +56,7 @@ export function FooterCategories({ categories }: FooterCategoriesProps) {
                       -
                     </span>
                     <span className="leading-relaxed">{link.label}</span>
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

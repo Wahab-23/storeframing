@@ -28,7 +28,7 @@ export function SearchBar({
   return (
     <form
       onSubmit={handleSubmit}
-      className={`relative flex items-center w-full max-w-2xl ${className}`}
+      className={`relative flex items-center w-full ${className}`}
     >
       <input
         type="text"

@@ -17,12 +17,13 @@ export const defaultHeaderData: HeaderData = {
       icon: "heart",
       label: "Wishlist",
       href: "/wishlist",
+      badge: 1,
     },
     {
       icon: "shopping-cart",
       label: "Cart",
       href: "/cart",
-      badge: 0,
+      badge: 6,
     },
   ],
   navigation: [
@@ -439,5 +440,345 @@ export const defaultHeaderData: HeaderData = {
         },
       ],
     },
+    {
+      label: "Electronics4",
+      href: "/electronics",
+      subcategories: [
+        {
+          label: "TV & Video",
+          href: "/electronics/tv-video",
+          links: [
+            { label: "All in TV & Video", href: "/electronics/tv-video" },
+            { label: "LED TVs", href: "/electronics/tv-video/led-tvs" },
+            { label: "Premium 4K TVs", href: "/electronics/tv-video/4k-tvs" },
+            { label: "Projectors", href: "/electronics/tv-video/projectors" },
+            { label: "Blu-Ray & DVD Players", href: "/electronics/tv-video/blu-ray-dvd" },
+            { label: "Streaming Devices", href: "/electronics/tv-video/streaming-devices" },
+            { label: "TV Accessories", href: "/electronics/tv-video/tv-accessories" },
+          ],
+        },
+        {
+          label: "Camera, Photo & Video",
+          href: "/electronics/cameras",
+          links: [
+            { label: "DSLR Cameras", href: "/electronics/cameras/dslr" },
+            { label: "Mirrorless Cameras", href: "/electronics/cameras/mirrorless" },
+            { label: "Action Cameras", href: "/electronics/cameras/action-cameras" },
+            { label: "Camera Lenses", href: "/electronics/cameras/lenses" },
+            { label: "Tripods & Mounts", href: "/electronics/cameras/tripods" },
+          ],
+        },
+        {
+          label: "Home Audio & Theater",
+          href: "/electronics/audio",
+          links: [
+            { label: "Soundbars", href: "/electronics/audio/soundbars" },
+            { label: "Home Theater Systems", href: "/electronics/audio/home-theater" },
+            { label: "Speakers", href: "/electronics/audio/speakers" },
+            { label: "Amplifiers", href: "/electronics/audio/amplifiers" },
+            { label: "AV Receivers", href: "/electronics/audio/av-receivers" },
+          ],
+        },
+        {
+          label: "VR & Glasses",
+          href: "/electronics/vr",
+          links: [
+            { label: "VR Headsets", href: "/electronics/vr/headsets" },
+            { label: "Smart Glasses", href: "/electronics/vr/smart-glasses" },
+            { label: "VR Accessories", href: "/electronics/vr/accessories" },
+          ],
+        },
+        {
+          label: "Wearable",
+          href: "/electronics/wearable",
+          links: [
+            { label: "Smart Watches", href: "/electronics/wearable/smart-watches" },
+            { label: "Fitness Trackers", href: "/electronics/wearable/fitness-trackers" },
+            { label: "Smart Rings", href: "/electronics/wearable/smart-rings" },
+          ],
+        },
+        {
+          label: "Headphones & Earbuds",
+          href: "/electronics/headphones",
+          links: [
+            { label: "Wireless Earbuds", href: "/electronics/headphones/wireless-earbuds" },
+            { label: "Over-Ear Headphones", href: "/electronics/headphones/over-ear" },
+            { label: "Noise Cancelling", href: "/electronics/headphones/noise-cancelling" },
+            { label: "Gaming Headsets", href: "/electronics/headphones/gaming" },
+          ],
+        },
+        {
+          label: "Accessories & Supplies",
+          href: "/electronics/accessories",
+          links: [
+            { label: "Cables & Adapters", href: "/electronics/accessories/cables" },
+            { label: "Power Banks", href: "/electronics/accessories/power-banks" },
+            { label: "Chargers", href: "/electronics/accessories/chargers" },
+            { label: "Memory Cards", href: "/electronics/accessories/memory-cards" },
+          ],
+        },
+      ],
+      brands: [
+        { name: "Samsung", logo: "/brands/samsung.png", href: "/brands/samsung" },
+        { name: "LG", logo: "/brands/lg.png", href: "/brands/lg" },
+        { name: "Sony", logo: "/brands/sony.png", href: "/brands/sony" },
+        { name: "TCL", logo: "/brands/tcl.png", href: "/brands/tcl" },
+      ],
+    },
+    {
+      label: "Electronics1",
+      href: "/electronics",
+      subcategories: [
+        {
+          label: "TV & Video",
+          href: "/electronics/tv-video",
+          links: [
+            { label: "All in TV & Video", href: "/electronics/tv-video" },
+            { label: "LED TVs", href: "/electronics/tv-video/led-tvs" },
+            { label: "Premium 4K TVs", href: "/electronics/tv-video/4k-tvs" },
+            { label: "Projectors", href: "/electronics/tv-video/projectors" },
+            { label: "Blu-Ray & DVD Players", href: "/electronics/tv-video/blu-ray-dvd" },
+            { label: "Streaming Devices", href: "/electronics/tv-video/streaming-devices" },
+            { label: "TV Accessories", href: "/electronics/tv-video/tv-accessories" },
+          ],
+        },
+        {
+          label: "Camera, Photo & Video",
+          href: "/electronics/cameras",
+          links: [
+            { label: "DSLR Cameras", href: "/electronics/cameras/dslr" },
+            { label: "Mirrorless Cameras", href: "/electronics/cameras/mirrorless" },
+            { label: "Action Cameras", href: "/electronics/cameras/action-cameras" },
+            { label: "Camera Lenses", href: "/electronics/cameras/lenses" },
+            { label: "Tripods & Mounts", href: "/electronics/cameras/tripods" },
+          ],
+        },
+        {
+          label: "Home Audio & Theater",
+          href: "/electronics/audio",
+          links: [
+            { label: "Soundbars", href: "/electronics/audio/soundbars" },
+            { label: "Home Theater Systems", href: "/electronics/audio/home-theater" },
+            { label: "Speakers", href: "/electronics/audio/speakers" },
+            { label: "Amplifiers", href: "/electronics/audio/amplifiers" },
+            { label: "AV Receivers", href: "/electronics/audio/av-receivers" },
+          ],
+        },
+        {
+          label: "VR & Glasses",
+          href: "/electronics/vr",
+          links: [
+            { label: "VR Headsets", href: "/electronics/vr/headsets" },
+            { label: "Smart Glasses", href: "/electronics/vr/smart-glasses" },
+            { label: "VR Accessories", href: "/electronics/vr/accessories" },
+          ],
+        },
+        {
+          label: "Wearable",
+          href: "/electronics/wearable",
+          links: [
+            { label: "Smart Watches", href: "/electronics/wearable/smart-watches" },
+            { label: "Fitness Trackers", href: "/electronics/wearable/fitness-trackers" },
+            { label: "Smart Rings", href: "/electronics/wearable/smart-rings" },
+          ],
+        },
+        {
+          label: "Headphones & Earbuds",
+          href: "/electronics/headphones",
+          links: [
+            { label: "Wireless Earbuds", href: "/electronics/headphones/wireless-earbuds" },
+            { label: "Over-Ear Headphones", href: "/electronics/headphones/over-ear" },
+            { label: "Noise Cancelling", href: "/electronics/headphones/noise-cancelling" },
+            { label: "Gaming Headsets", href: "/electronics/headphones/gaming" },
+          ],
+        },
+        {
+          label: "Accessories & Supplies",
+          href: "/electronics/accessories",
+          links: [
+            { label: "Cables & Adapters", href: "/electronics/accessories/cables" },
+            { label: "Power Banks", href: "/electronics/accessories/power-banks" },
+            { label: "Chargers", href: "/electronics/accessories/chargers" },
+            { label: "Memory Cards", href: "/electronics/accessories/memory-cards" },
+          ],
+        },
+      ],
+      brands: [
+        { name: "Samsung", logo: "/brands/samsung.png", href: "/brands/samsung" },
+        { name: "LG", logo: "/brands/lg.png", href: "/brands/lg" },
+        { name: "Sony", logo: "/brands/sony.png", href: "/brands/sony" },
+        { name: "TCL", logo: "/brands/tcl.png", href: "/brands/tcl" },
+      ],
+    },
+    {
+      label: "Electronics2",
+      href: "/electronics",
+      subcategories: [
+        {
+          label: "TV & Video",
+          href: "/electronics/tv-video",
+          links: [
+            { label: "All in TV & Video", href: "/electronics/tv-video" },
+            { label: "LED TVs", href: "/electronics/tv-video/led-tvs" },
+            { label: "Premium 4K TVs", href: "/electronics/tv-video/4k-tvs" },
+            { label: "Projectors", href: "/electronics/tv-video/projectors" },
+            { label: "Blu-Ray & DVD Players", href: "/electronics/tv-video/blu-ray-dvd" },
+            { label: "Streaming Devices", href: "/electronics/tv-video/streaming-devices" },
+            { label: "TV Accessories", href: "/electronics/tv-video/tv-accessories" },
+          ],
+        },
+        {
+          label: "Camera, Photo & Video",
+          href: "/electronics/cameras",
+          links: [
+            { label: "DSLR Cameras", href: "/electronics/cameras/dslr" },
+            { label: "Mirrorless Cameras", href: "/electronics/cameras/mirrorless" },
+            { label: "Action Cameras", href: "/electronics/cameras/action-cameras" },
+            { label: "Camera Lenses", href: "/electronics/cameras/lenses" },
+            { label: "Tripods & Mounts", href: "/electronics/cameras/tripods" },
+          ],
+        },
+        {
+          label: "Home Audio & Theater",
+          href: "/electronics/audio",
+          links: [
+            { label: "Soundbars", href: "/electronics/audio/soundbars" },
+            { label: "Home Theater Systems", href: "/electronics/audio/home-theater" },
+            { label: "Speakers", href: "/electronics/audio/speakers" },
+            { label: "Amplifiers", href: "/electronics/audio/amplifiers" },
+            { label: "AV Receivers", href: "/electronics/audio/av-receivers" },
+          ],
+        },
+        {
+          label: "VR & Glasses",
+          href: "/electronics/vr",
+          links: [
+            { label: "VR Headsets", href: "/electronics/vr/headsets" },
+            { label: "Smart Glasses", href: "/electronics/vr/smart-glasses" },
+            { label: "VR Accessories", href: "/electronics/vr/accessories" },
+          ],
+        },
+        {
+          label: "Wearable",
+          href: "/electronics/wearable",
+          links: [
+            { label: "Smart Watches", href: "/electronics/wearable/smart-watches" },
+            { label: "Fitness Trackers", href: "/electronics/wearable/fitness-trackers" },
+            { label: "Smart Rings", href: "/electronics/wearable/smart-rings" },
+          ],
+        },
+        {
+          label: "Headphones & Earbuds",
+          href: "/electronics/headphones",
+          links: [
+            { label: "Wireless Earbuds", href: "/electronics/headphones/wireless-earbuds" },
+            { label: "Over-Ear Headphones", href: "/electronics/headphones/over-ear" },
+            { label: "Noise Cancelling", href: "/electronics/headphones/noise-cancelling" },
+            { label: "Gaming Headsets", href: "/electronics/headphones/gaming" },
+          ],
+        },
+        {
+          label: "Accessories & Supplies",
+          href: "/electronics/accessories",
+          links: [
+            { label: "Cables & Adapters", href: "/electronics/accessories/cables" },
+            { label: "Power Banks", href: "/electronics/accessories/power-banks" },
+            { label: "Chargers", href: "/electronics/accessories/chargers" },
+            { label: "Memory Cards", href: "/electronics/accessories/memory-cards" },
+          ],
+        },
+      ],
+      brands: [
+        { name: "Samsung", logo: "/brands/samsung.png", href: "/brands/samsung" },
+        { name: "LG", logo: "/brands/lg.png", href: "/brands/lg" },
+        { name: "Sony", logo: "/brands/sony.png", href: "/brands/sony" },
+        { name: "TCL", logo: "/brands/tcl.png", href: "/brands/tcl" },
+      ],
+    },
+    {
+      label: "Electronics3",
+      href: "/electronics",
+      subcategories: [
+        {
+          label: "TV & Video",
+          href: "/electronics/tv-video",
+          links: [
+            { label: "All in TV & Video", href: "/electronics/tv-video" },
+            { label: "LED TVs", href: "/electronics/tv-video/led-tvs" },
+            { label: "Premium 4K TVs", href: "/electronics/tv-video/4k-tvs" },
+            { label: "Projectors", href: "/electronics/tv-video/projectors" },
+            { label: "Blu-Ray & DVD Players", href: "/electronics/tv-video/blu-ray-dvd" },
+            { label: "Streaming Devices", href: "/electronics/tv-video/streaming-devices" },
+            { label: "TV Accessories", href: "/electronics/tv-video/tv-accessories" },
+          ],
+        },
+        {
+          label: "Camera, Photo & Video",
+          href: "/electronics/cameras",
+          links: [
+            { label: "DSLR Cameras", href: "/electronics/cameras/dslr" },
+            { label: "Mirrorless Cameras", href: "/electronics/cameras/mirrorless" },
+            { label: "Action Cameras", href: "/electronics/cameras/action-cameras" },
+            { label: "Camera Lenses", href: "/electronics/cameras/lenses" },
+            { label: "Tripods & Mounts", href: "/electronics/cameras/tripods" },
+          ],
+        },
+        {
+          label: "Home Audio & Theater",
+          href: "/electronics/audio",
+          links: [
+            { label: "Soundbars", href: "/electronics/audio/soundbars" },
+            { label: "Home Theater Systems", href: "/electronics/audio/home-theater" },
+            { label: "Speakers", href: "/electronics/audio/speakers" },
+            { label: "Amplifiers", href: "/electronics/audio/amplifiers" },
+            { label: "AV Receivers", href: "/electronics/audio/av-receivers" },
+          ],
+        },
+        {
+          label: "VR & Glasses",
+          href: "/electronics/vr",
+          links: [
+            { label: "VR Headsets", href: "/electronics/vr/headsets" },
+            { label: "Smart Glasses", href: "/electronics/vr/smart-glasses" },
+            { label: "VR Accessories", href: "/electronics/vr/accessories" },
+          ],
+        },
+        {
+          label: "Wearable",
+          href: "/electronics/wearable",
+          links: [
+            { label: "Smart Watches", href: "/electronics/wearable/smart-watches" },
+            { label: "Fitness Trackers", href: "/electronics/wearable/fitness-trackers" },
+            { label: "Smart Rings", href: "/electronics/wearable/smart-rings" },
+          ],
+        },
+        {
+          label: "Headphones & Earbuds",
+          href: "/electronics/headphones",
+          links: [
+            { label: "Wireless Earbuds", href: "/electronics/headphones/wireless-earbuds" },
+            { label: "Over-Ear Headphones", href: "/electronics/headphones/over-ear" },
+            { label: "Noise Cancelling", href: "/electronics/headphones/noise-cancelling" },
+            { label: "Gaming Headsets", href: "/electronics/headphones/gaming" },
+          ],
+        },
+        {
+          label: "Accessories & Supplies",
+          href: "/electronics/accessories",
+          links: [
+            { label: "Cables & Adapters", href: "/electronics/accessories/cables" },
+            { label: "Power Banks", href: "/electronics/accessories/power-banks" },
+            { label: "Chargers", href: "/electronics/accessories/chargers" },
+            { label: "Memory Cards", href: "/electronics/accessories/memory-cards" },
+          ],
+        },
+      ],
+      brands: [
+        { name: "Samsung", logo: "/brands/samsung.png", href: "/brands/samsung" },
+        { name: "LG", logo: "/brands/lg.png", href: "/brands/lg" },
+        { name: "Sony", logo: "/brands/sony.png", href: "/brands/sony" },
+        { name: "TCL", logo: "/brands/tcl.png", href: "/brands/tcl" },
+      ],
+    }
   ],
 };

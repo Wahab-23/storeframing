@@ -28,13 +28,15 @@ export function WishlistButton({
                 bg-white/95
                 backdrop-blur
                 transition-all
-                duration-200
+                duration-100
                 hover:scale-110
                 hover:bg-cadmium-red-200
                 hover:text-white-chalk-100
                 cursor-pointer
                 hover:animate-pulse
+                transform  active:scale-95 ease-out
             "
+            onClick={() => console.log("Wishlist Button Clicked!")}
         >
             <Heart
                 className={"h-4 w-4"}

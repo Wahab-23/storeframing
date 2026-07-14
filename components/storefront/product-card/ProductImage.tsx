@@ -17,12 +17,34 @@ export function ProductImage({ product }: Props) {
     const [currentIndex, setCurrentIndex] = useState(0)
     const [isHovered, setIsHovered] = useState(false)
     const [isPaused, setIsPaused] = useState(false)
+    const [isVisible, setIsVisible] = useState(false)
+    const [isTouchDevice, setIsTouchDevice] = useState(false)
+    const [touchStart, setTouchStart] = useState<number | null>(null)
+    const [touchEnd, setTouchEnd] = useState<number | null>(null)
+
     const containerRef = useRef<HTMLDivElement>(null)
     const interactionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     // Ensure image is treated as an array even if it's somehow a string
     const images = Array.isArray(product.image) ? product.image : [product.image]
     const hasMultiple = images.length > 1
+
+    useEffect(() => {
+        setIsTouchDevice(window.matchMedia('(hover: none) and (pointer: coarse)').matches)
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                setIsVisible(entry.isIntersecting)
+            },
+            { threshold: 0.5 }
+        )
+
+        if (containerRef.current) {
+            observer.observe(containerRef.current)
+        }
+
+        return () => observer.disconnect()
+    }, [])
 
     useEffect(() => {
         const article = containerRef.current?.closest('article.group')
@@ -49,14 +71,15 @@ export function ProductImage({ product }: Props) {
     }, [])
 
     useEffect(() => {
-        if (!hasMultiple || !isHovered || isPaused) return
+        const shouldPlay = hasMultiple && !isPaused && (isHovered || (isTouchDevice && isVisible))
+        if (!shouldPlay) return
 
         const timer = setInterval(() => {
             setCurrentIndex((prev) => (prev + 1) % images.length)
-        }, 1500) // Change image every 1.5 seconds
+        }, 2500) // Change image every 1.5 seconds
 
         return () => clearInterval(timer)
-    }, [hasMultiple, isHovered, isPaused, images.length])
+    }, [hasMultiple, isHovered, isPaused, images.length, isTouchDevice, isVisible])
 
     const handleInteraction = () => {
         setIsPaused(true)
@@ -68,19 +91,52 @@ export function ProductImage({ product }: Props) {
         }, 3000)
     }
 
+    const goToNext = () => {
+        setCurrentIndex((prev) => (prev + 1) % images.length)
+        handleInteraction()
+    }
+
+    const goToPrev = () => {
+        setCurrentIndex((prev) => (prev - 1 + images.length) % images.length)
+        handleInteraction()
+    }
+
     const nextImage = (e: React.MouseEvent) => {
         e.preventDefault()
         e.stopPropagation()
-        setCurrentIndex((prev) => (prev + 1) % images.length)
-        handleInteraction()
+        goToNext()
     }
 
     const prevImage = (e: React.MouseEvent) => {
         e.preventDefault()
         e.stopPropagation()
-        setCurrentIndex((prev) => (prev - 1 + images.length) % images.length)
+        goToPrev()
+    }
+
+    const onTouchStart = (e: React.TouchEvent) => {
+        setTouchEnd(null)
+        setTouchStart(e.targetTouches[0].clientX)
         handleInteraction()
     }
+
+    const onTouchMove = (e: React.TouchEvent) => {
+        setTouchEnd(e.targetTouches[0].clientX)
+    }
+
+    const onTouchEnd = () => {
+        if (!touchStart || !touchEnd) return
+        const distance = touchStart - touchEnd
+        const isLeftSwipe = distance > 50
+        const isRightSwipe = distance < -50
+
+        if (isLeftSwipe) {
+            goToNext()
+        } else if (isRightSwipe) {
+            goToPrev()
+        }
+    }
+
+    const showControls = isHovered || isTouchDevice
 
     return (
         <div
@@ -95,6 +151,9 @@ export function ProductImage({ product }: Props) {
                 <div
                     className="flex h-full w-full transition-transform duration-500 ease-in-out"
                     style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+                    onTouchStart={onTouchStart}
+                    onTouchMove={onTouchMove}
+                    onTouchEnd={onTouchEnd}
                 >
                     {images.map((src, idx) => (
                         <div key={idx} className="relative h-full w-full shrink-0 p-2">
@@ -116,7 +175,7 @@ export function ProductImage({ product }: Props) {
                     <>
                         <button
                             onClick={prevImage}
-                            className={`absolute left-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-matt-black-200 shadow-sm transition-all duration-300 hover:bg-white hover:scale-110 z-10 ${isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
+                            className={`absolute cursor-pointer left-2 top-1/2 flex h-7 w-7 transform active:scale-95 duration-100 ease-out -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-matt-black-200 shadow-sm transition-all hover:bg-white hover:scale-110 z-10 ${showControls ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
                                 }`}
                             aria-label="Previous image"
                         >
@@ -124,7 +183,7 @@ export function ProductImage({ product }: Props) {
                         </button>
                         <button
                             onClick={nextImage}
-                            className={`absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-matt-black-200 shadow-sm transition-all duration-300 hover:bg-white hover:scale-110 z-10 ${isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
+                            className={`absolute cursor-pointer right-2 top-1/2 flex h-7 w-7 transform active:scale-95 ease-out -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-matt-black-200 shadow-sm transition-all duration-100 hover:bg-white hover:scale-110 z-10 ${showControls ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
                                 }`}
                             aria-label="Next image"
                         >
@@ -135,7 +194,7 @@ export function ProductImage({ product }: Props) {
 
                 {/* Bottom Indicators (Dots) */}
                 {hasMultiple && (
-                    <div className={`absolute bottom-3 left-0 right-0 z-10 flex justify-center gap-1.5 transition-all duration-300 ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+                    <div className={`absolute bottom-3 left-0 right-0 z-10 flex justify-center gap-1.5 transition-all duration-300 ${showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
                         }`}>
                         {images.map((_, idx) => (
                             <button

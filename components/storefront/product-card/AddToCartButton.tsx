@@ -23,11 +23,12 @@ export function AddToCartButton() {
                 bg-white
                 shadow-sm
                 transition-all
-                duration-200
+                duration-100
                 hover:scale-105
                 hover:border-black
                 hover:bg-black
                 hover:text-white
+                transform active:scale-95 ease-out
             "
         >
             <Plus className="h-5 w-5" />

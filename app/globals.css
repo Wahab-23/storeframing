@@ -2,6 +2,7 @@
 
 @theme {
     --font-sans: var(--font-manrope), sans-serif;
+    --font-sora: var(--font-sora), sans-serif;
 
     --color-sunflower-100: #FCC014;
     --color-sunflower-200: #FDCE63;

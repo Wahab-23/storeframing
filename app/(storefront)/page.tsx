@@ -1,18 +1,11 @@
 import { ProductCard } from "@/components/storefront/product-card/ProductCard";
+import { HeroSection } from "@/components/storefront/hero/HeroSection";
 
 export default function Home() {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <div className="flex flex-col items-center justify-center py-16" >
-        <h1 className="text-4xl font-extrabold">Hero Section</h1>
-        <h2 className="text-3xl font-bold">Hero Section</h2>
-        <h3 className="text-xl font-semibold">Hero Section</h3>
-        <p className="text-sm font-medium">A best way to sell your products online</p>
-        <button className="">
-          Get started
-        </button>
-      </div>
+      <HeroSection />
       {/* Product Section */}
       <div className="flex flex-col items-center justify-center py-16" >
         <h1>Product Section</h1>

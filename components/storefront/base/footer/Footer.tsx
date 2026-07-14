@@ -4,6 +4,7 @@ import { Phone, Mail, Truck, Banknote, Headphones, ThumbsUp } from "lucide-react
 import { FooterData, FooterContactCard, FooterValueProp } from "./types";
 import { defaultFooterData } from "./defaultData";
 import { FooterCategories } from "./FooterCategories";
+import Link from "next/link";
 
 // ─── Contact icon map ─────────────────────────────────────────────────────────
 
@@ -168,7 +169,7 @@ export default function Footer({ data }: FooterProps) {
                 <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                         {d.contacts.map((card) => (
-                            <a
+                            <Link
                                 key={card.href}
                                 href={card.href}
                                 {...(card.icon === "whatsapp"
@@ -187,7 +188,7 @@ export default function Footer({ data }: FooterProps) {
                                         {card.value}
                                     </span>
                                 </div>
-                            </a>
+                            </Link>
                         ))}
                     </div>
                 </div>
@@ -234,7 +235,7 @@ export default function Footer({ data }: FooterProps) {
                     <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-6 border-b border-matt-black-200/40">
 
                         {/* Logo */}
-                        <a href="/" className="flex items-center shrink-0">
+                        <Link href="/" className="flex items-center shrink-0">
                             <Image
                                 src={d.logo.src}
                                 alt={d.logo.alt}
@@ -243,7 +244,7 @@ export default function Footer({ data }: FooterProps) {
                                 className="object-contain h-auto w-auto max-h-[40px] hover:opacity-90 transition-opacity duration-200"
                                 priority={false}
                             />
-                        </a>
+                        </Link>
 
                         {/* Payment badges */}
                         <div className="flex items-center gap-3 flex-wrap justify-center">
@@ -263,7 +264,7 @@ export default function Footer({ data }: FooterProps) {
                             {d.socials.map((s) => {
                                 const { icon, hoverBg } = socialIconMap[s.platform];
                                 return (
-                                    <a
+                                    <Link
                                         key={s.platform}
                                         href={s.href}
                                         target="_blank"
@@ -272,7 +273,7 @@ export default function Footer({ data }: FooterProps) {
                                         className={`flex items-center justify-center w-8 h-8 rounded-full bg-matt-black-200 border border-matt-black-200 ${hoverBg} text-white-chalk-100 hover:text-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg`}
                                     >
                                         {icon}
-                                    </a>
+                                    </Link>
                                 );
                             })}
                         </div>

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Menu, X, ChevronDown, ChevronRight, User, Heart, ShoppingCart } from "lucide-react";
 import { HeaderNavCategory, HeaderActionLink } from "./types";
 import { SearchBar } from "./SearchBar";
+import Link from "next/link";
 
 interface MobileMenuProps {
   navigation: HeaderNavCategory[];
@@ -66,7 +67,7 @@ export function MobileMenu({ navigation, actions }: MobileMenuProps) {
 
       {/* Drawer */}
       <div
-        className={`fixed top-0 left-0 bottom-0 z-999 w-[85vw] max-w-[380px] bg-matt-black-100 shadow-2xl transform transition-transform duration-300 ease-out lg:hidden ${isOpen ? "translate-x-0" : "-translate-x-full"
+        className={`flex flex-col h-full fixed top-0 left-0 bottom-0 z-999 w-[85vw] max-w-[380px] bg-matt-black-100 shadow-2xl transform transition-transform duration-300 ease-out lg:hidden ${isOpen ? "translate-x-0" : "-translate-x-full"
           }`}
       >
         {/* Drawer header */}
@@ -91,19 +92,19 @@ export function MobileMenu({ navigation, actions }: MobileMenuProps) {
         {/* Actions (Sign In, Wishlist, Cart) */}
         <div className="flex items-center gap-1 px-4 py-3 border-b border-matt-black-200">
           {actions.map((action) => (
-            <a
+            <Link
               key={action.label}
               href={action.href}
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-white-chalk-400 hover:text-sunflower-100 hover:bg-matt-black-200 transition-colors duration-200 text-sm font-medium"
             >
               <ActionIcon icon={action.icon} />
               <span>{action.label}</span>
-            </a>
+            </Link>
           ))}
         </div>
 
         {/* Navigation accordion */}
-        <div className="flex-1 overflow-y-auto overscroll-contain px-2 py-2">
+        <div className="flex-1 px-2 py-2 overflow-scroll pb-10">
           {navigation.map((cat) => {
             const isCatExpanded = expandedCategory === cat.label;
             return (
@@ -112,8 +113,8 @@ export function MobileMenu({ navigation, actions }: MobileMenuProps) {
                 <button
                   onClick={() => toggleCategory(cat.label)}
                   className={`w-full flex items-center justify-between px-3 py-3 rounded-lg text-left text-sm font-semibold tracking-wide transition-colors duration-150 ${isCatExpanded
-                      ? "text-sunflower-100 bg-matt-black-200/60"
-                      : "text-white-chalk-100 hover:bg-matt-black-200/40"
+                    ? "text-sunflower-100 bg-matt-black-200/60"
+                    : "text-white-chalk-100 hover:bg-matt-black-200/40"
                     }`}
                 >
                   <span>{cat.label}</span>
@@ -133,8 +134,8 @@ export function MobileMenu({ navigation, actions }: MobileMenuProps) {
                           <button
                             onClick={() => toggleSubcategory(sub.label)}
                             className={`w-full flex items-center justify-between px-2 py-2 rounded text-left text-sm transition-colors duration-150 ${isSubExpanded
-                                ? "text-sunflower-100 font-semibold"
-                                : "text-matt-black-400 hover:text-white-chalk-100 font-medium"
+                              ? "text-sunflower-100 font-semibold"
+                              : "text-matt-black-400 hover:text-white-chalk-100 font-medium"
                               }`}
                           >
                             <span>{sub.label}</span>
@@ -148,14 +149,14 @@ export function MobileMenu({ navigation, actions }: MobileMenuProps) {
                           {isSubExpanded && (
                             <div className="ml-3 pl-2 border-l border-matt-black-300/20 mb-2">
                               {sub.links.map((link) => (
-                                <a
+                                <Link
                                   key={link.href}
                                   href={link.href}
                                   onClick={() => setIsOpen(false)}
                                   className="block px-2 py-1.5 text-[13px] text-matt-black-400 hover:text-sunflower-100 transition-colors duration-150"
                                 >
                                   {link.label}
-                                </a>
+                                </Link>
                               ))}
                             </div>
                           )}
