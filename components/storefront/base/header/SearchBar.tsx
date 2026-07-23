@@ -35,7 +35,7 @@ export function SearchBar({
         name="q"
         placeholder={placeholder}
         autoComplete="off"
-        className="w-full h-10 pl-4 pr-12 rounded-full bg-matt-black-200 border border-matt-black-300/40 text-white-chalk-100 text-sm placeholder:text-matt-black-400 focus:outline-none focus:border-sunflower-100/50 focus:ring-1 focus:ring-sunflower-100/20 transition-all duration-200"
+        className="w-full h-10 pl-4 pr-12 rounded-full bg-white-chalk-200 border border-gray-200 text-matt-black-100 text-sm placeholder:text-matt-black-400 focus:outline-none focus:border-sunflower-100/50 focus:ring-1 focus:ring-sunflower-100/20 transition-all duration-200"
       />
       <button
         type="submit"

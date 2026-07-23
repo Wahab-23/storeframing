@@ -143,8 +143,8 @@ export function ProductImage({ product }: Props) {
             ref={containerRef}
             className="relative overflow-hidden rounded-t-[10px] bg-[#F8F8F8]"
         >
-            <ProductBadge discount={product.discount} />
-            <WishlistButton />
+            <ProductBadge discount={product.discount} inStock={product.inStock} />
+            <WishlistButton product={product} />
 
             <div className="relative aspect-5/7 overflow-hidden">
                 {/* Image Track */}
@@ -216,7 +216,7 @@ export function ProductImage({ product }: Props) {
                 )}
             </div>
 
-            <AddToCartButton />
+            <AddToCartButton product={product} />
         </div>
     )
 }

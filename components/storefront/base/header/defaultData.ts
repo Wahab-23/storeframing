@@ -2,7 +2,7 @@ import { HeaderData } from "./types";
 
 export const defaultHeaderData: HeaderData = {
   logo: {
-    src: "/company-identity/iShopping-logo-white.png",
+    src: "/company-identity/iShopping.svg",
     alt: "iShopping Logo",
     width: 140,
     height: 40,

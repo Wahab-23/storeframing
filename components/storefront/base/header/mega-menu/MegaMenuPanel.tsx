@@ -28,26 +28,26 @@ export function MegaMenuPanel({
             onMouseLeave={scheduleClose}
         >
             <div className="container mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                <div className="flex min-h-[320px]">
+                <div className="flex min-h-80">
 
                     {/* Left Side */}
-                    <div className="w-[240px] shrink-0 border-r border-matt-black-500/50 pr-2">
+                    <div className="w-60 shrink-0 border-r border-matt-black-500/50 pr-2">
                         {category.subcategories.map((subcategory, index) => (
                             <Link
                                 key={subcategory.label}
                                 href={subcategory.href}
                                 onMouseEnter={() => setActiveSubcategory(index)}
-                                className={`group flex items-center justify-between px-3 py-2.5 text-sm transition-colors ${activeSubcategory === index
-                                        ? "border-l border-sunflower-100 font-semibold text-matt-black-100"
-                                        : "font-medium text-matt-black-300 hover:bg-white-chalk-200 hover:text-matt-black-100"
+                                className={`group flex items-center justify-between px-3 py-2.5 text-sm transition-colors border-sunflower-100 ${activeSubcategory === index
+                                    ? "border-l font-semibold text-matt-black-100"
+                                    : "font-medium text-matt-black-300 hover:bg-white-chalk-200 hover:text-matt-black-100"
                                     }`}
                             >
                                 <span>{subcategory.label}</span>
 
                                 <ChevronRight
                                     className={`h-3.5 w-3.5 transition-all duration-150 ${activeSubcategory === index
-                                            ? "translate-x-0 opacity-100"
-                                            : "-translate-x-1 opacity-0"
+                                        ? "translate-x-0 opacity-100"
+                                        : "-translate-x-1 opacity-0"
                                         }`}
                                 />
                             </Link>

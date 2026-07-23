@@ -52,7 +52,7 @@ export function MobileMenu({ navigation, actions }: MobileMenuProps) {
       <button
         onClick={() => setIsOpen(true)}
         aria-label="Open menu"
-        className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg text-white-chalk-100 hover:text-sunflower-100 hover:bg-matt-black-200 transition-colors duration-200"
+        className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg text-gray-700 hover:text-black hover:bg-gray-100 transition-colors duration-200"
       >
         <Menu className="w-5 h-5 stroke-2" />
       </button>
@@ -67,7 +67,7 @@ export function MobileMenu({ navigation, actions }: MobileMenuProps) {
 
       {/* Drawer */}
       <div
-        className={`flex flex-col h-full fixed top-0 left-0 bottom-0 z-999 w-[85vw] max-w-[380px] bg-matt-black-100 shadow-2xl transform transition-transform duration-300 ease-out lg:hidden ${isOpen ? "translate-x-0" : "-translate-x-full"
+        className={`flex flex-col h-full fixed top-0 left-0 bottom-0 z-999 w-[85vw] max-w-95 bg-matt-black-100 shadow-2xl transform transition-transform duration-300 ease-out lg:hidden ${isOpen ? "translate-x-0" : "-translate-x-full"
           }`}
       >
         {/* Drawer header */}

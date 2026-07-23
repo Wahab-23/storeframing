@@ -18,8 +18,8 @@ export function ProductCard({ product }: Props) {
             className="
                 group
                 w-full
-                min-w-[160px]
-                max-w-[195px]
+                min-w-40
+                max-w-48.75
                 overflow-hidden
                 rounded-[10px]
                 border
