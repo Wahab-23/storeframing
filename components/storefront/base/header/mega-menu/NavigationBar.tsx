@@ -99,7 +99,7 @@ export function NavigationBar({
     };
 
     return (
-        <nav className="bg-white-chalk-100 border-b border-matt-black-300/20">
+        <nav className="bg-white-chalk-500 border-b border-matt-black-300/20">
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="relative">
 
@@ -108,7 +108,7 @@ export function NavigationBar({
                     {canScrollLeft && (
                         <button
                             onClick={scrollLeft}
-                            className="absolute left-0 top-0 bottom-0 z-10 flex w-12 items-center justify-start bg-linear-to-r from-white-chalk-200 via-white-chalk-200/90 to-transparent text-matt-black-100 hover:text-sunflower-100"
+                            className="absolute left-0 top-0 bottom-0 z-10 flex w-12 items-center justify-start bg-linear-to-r from-white-chalk-500 via-white-chalk-500/90 to-transparent text-matt-black-100 hover:text-sunflower-100"
                         >
                             <ChevronLeft className="ml-1 h-5 w-5" />
                         </button>
@@ -148,7 +148,7 @@ export function NavigationBar({
                     {canScrollRight && (
                         <button
                             onClick={scrollRight}
-                            className="absolute right-0 top-0 bottom-0 z-10 flex w-12 items-center justify-end bg-linear-to-l from-white-chalk-200 via-white-chalk-200/90 to-transparent text-matt-black-100 hover:text-sunflower-100"
+                            className="absolute right-0 top-0 bottom-0 z-10 flex w-12 items-center justify-end bg-linear-to-l from-white-chalk-500 via-white-chalk-500/90 to-transparent text-matt-black-100 hover:text-sunflower-100"
                         >
                             <ChevronRight className="mr-1 h-5 w-5" />
                         </button>
