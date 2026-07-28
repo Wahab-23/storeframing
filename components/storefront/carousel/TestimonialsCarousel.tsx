@@ -49,7 +49,7 @@ function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
         aria-hidden="true"
         className="absolute top-4 right-6 text-[80px] leading-none text-pablano-500/20 font-serif pointer-events-none select-none"
       >
-        "
+        “
       </div>
 
       <div>
@@ -68,7 +68,7 @@ function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
 
         {/* Text */}
         <p className="text-sm text-matt-black-300 italic line-clamp-4 relative z-10">
-          "{testimonial.text}"
+          “{testimonial.text}”
         </p>
       </div>
 

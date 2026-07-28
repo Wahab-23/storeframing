@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { X, Heart, Trash2, ShoppingCart, ArrowRight, Sparkles } from "lucide-react";
 import { useWishlist } from "@/lib/wishlist/WishlistContext";
 import { useCart } from "@/lib/cart/CartContext";

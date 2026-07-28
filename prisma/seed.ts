@@ -37,16 +37,31 @@ async function main() {
     ];
 
     for (const role of roles) {
-        await prisma.role.upsert({
+        const existing = await prisma.role.findFirst({
             where: {
                 slug: role.slug,
+                sellerId: null,
             },
-            update: {
-                name: role.name,
-                description: role.description,
-            },
-            create: role,
         });
+
+        if (existing) {
+            await prisma.role.update({
+                where: { id: existing.id },
+                data: {
+                    name: role.name,
+                    description: role.description,
+                },
+            });
+        } else {
+            await prisma.role.create({
+                data: {
+                    name: role.name,
+                    slug: role.slug,
+                    description: role.description,
+                    sellerId: null,
+                },
+            });
+        }
     }
 
     console.log("Roles seeded successfully");

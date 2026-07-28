@@ -1,4 +1,3 @@
-import { Zap, Shield, Truck } from "lucide-react";
 import { HeroCarousel } from "./HeroCarousel";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -70,14 +69,6 @@ const slides: HeroSlide[] = [
     accentColor: "#118217",
     tag: "Big home sale",
   },
-];
-
-// ─── Trust Badges ──────────────────────────────────────────────────────────────
-
-const trustBadges = [
-  { icon: Truck, label: "Fast Delivery", sub: "2–4 working days" },
-  { icon: Shield, label: "Secure Payments", sub: "100% encrypted" },
-  { icon: Zap, label: "Flash Deals", sub: "Every day at midnight" },
 ];
 
 // ─── Server Component ──────────────────────────────────────────────────────────

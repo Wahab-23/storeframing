@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
                 {
                     success: false,
                     message: "Validation failed",
-                    errors: validationResult.error.flatten,
+                    errors: validationResult.error.flatten().fieldErrors,
                 },
                 { status: 400 }
             );
@@ -73,9 +73,10 @@ export async function POST(request: NextRequest) {
 
         const passwordHash = await bcrypt.hash(password, 12);
 
-        const customerRole = await prisma.role.findUnique({
+        const customerRole = await prisma.role.findFirst({
             where: {
                 slug: "customer",
+                sellerId: null,
             },
         });
 

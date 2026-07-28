@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
 import { SignJWT, jwtVerify } from "jose";
+import { prisma } from "@/lib/prisma";
 
 const secret = process.env.JWT_SECRET;
 

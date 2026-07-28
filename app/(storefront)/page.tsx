@@ -3,7 +3,6 @@ import { ProductCarousel } from "@/components/storefront/carousel/ProductCarouse
 import { CategoryCarousel, Category } from "@/components/storefront/carousel/CategoryCarousel";
 import { BrandsCarousel, Brand } from "@/components/storefront/carousel/BrandsCarousel";
 import { Product } from "@/components/storefront/product-card/types";
-import { FeaturesBanner } from "@/components/storefront/base/FeaturesBanner";
 import { PromoBanner } from "@/components/storefront/base/PromoBanner";
 import { TestimonialsCarousel, Testimonial } from "@/components/storefront/carousel/TestimonialsCarousel";
 

@@ -135,6 +135,11 @@ enum SellerOrderStatus {
   REFUNDED
 }
 
+enum SellerTrustBadge {
+  NONE
+  VERIFIED_SELLER
+}
+
 enum OrderStatusHistorySource {
   SYSTEM
   CUSTOMER
@@ -356,13 +361,15 @@ model User {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  staffOfSellerId String?
+
   roleAssignments UserRoleAssignment[]
 
   seller Seller?
 
   addresses Address[]
 
-  cart     Cart?
+  cart     Cart[]
   wishlist Wishlist?
 
   orders Order[]
@@ -383,8 +390,11 @@ model User {
 
   createdProducts Product[] @relation("ProductCreatedBy")
 
+  staffOfSeller Seller? @relation("SellerStaff", fields: [staffOfSellerId], references: [id], onDelete: SetNull)
+
   @@index([status])
   @@index([createdAt])
+  @@index([staffOfSellerId])
 }
 
 // ============================================================
@@ -393,15 +403,21 @@ model User {
 
 model Role {
   id          String  @id @default(cuid())
-  name        String  @unique
-  slug        String  @unique
+  name        String
+  slug        String
   description String?
+  sellerId    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  seller      Seller?              @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   users       UserRoleAssignment[]
   permissions RolePermission[]
+
+  @@unique([sellerId, slug])
+  @@unique([sellerId, name])
+  @@index([sellerId])
 }
 
 model Permission {
@@ -486,7 +502,16 @@ model Seller {
   businessPhone String?
 
   status             SellerStatus       @default(PENDING)
-  verificationStatus VerificationStatus @default(PENDING)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+
+  // Seller performance badge based on sales, ratings, and review count
+  trustBadge SellerTrustBadge @default(NONE)
+
+  completedOrderCount Int @default(0)
+  positiveReviewCount Int @default(0)
+
+  trustBadgeAwardedAt DateTime?
+  trustBadgeRemovedAt DateTime?
 
   sellerGroupId String?
 
@@ -503,7 +528,7 @@ model Seller {
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   sellerGroup SellerGroup? @relation(fields: [sellerGroupId], references: [id], onDelete: SetNull)
 
-  seo SellerSeo?
+  seo SeoMetadata?
 
   documents      SellerDocument[]
   payoutAccounts SellerPayoutAccount[]
@@ -530,6 +555,8 @@ model Seller {
   policies SellerPolicy?
 
   conversations Conversation[]
+  staff         User[]         @relation("SellerStaff")
+  roles         Role[]
 
   @@index([status])
   @@index([verificationStatus])
@@ -651,11 +678,17 @@ model SeoMetadata {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  product  Product?
-  category Category?
-  brand    Brand?
-  seller   SellerSeo?
-  page     CmsPage?
+  brandId    String? @unique
+  categoryId String? @unique
+  productId  String? @unique
+  pageId     String? @unique
+  sellerId   String? @unique
+
+  product  Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  brand    Brand?    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  page     CmsPage?  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  seller   Seller?   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 }
 
 // ============================================================
@@ -670,12 +703,10 @@ model Brand {
   logoUrl     String?
   isActive    Boolean @default(true)
 
-  seoId String? @unique
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  seo      SeoMetadata? @relation(fields: [seoId], references: [id], onDelete: SetNull)
+  seo      SeoMetadata?
   products Product[]
 
   @@index([isActive])
@@ -697,15 +728,13 @@ model Category {
   isActive  Boolean @default(true)
   sortOrder Int     @default(0)
 
-  seoId String? @unique
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
   children Category[] @relation("CategoryTree")
 
-  seo      SeoMetadata?      @relation(fields: [seoId], references: [id], onDelete: SetNull)
+  seo      SeoMetadata?
   products ProductCategory[]
 
   attributes CategoryAttribute[]
@@ -748,7 +777,6 @@ model Product {
   id String @id @default(cuid())
 
   brandId String?
-  seoId   String? @unique
 
   createdById String?
 
@@ -775,7 +803,7 @@ model Product {
   deletedAt DateTime?
 
   brand     Brand?       @relation(fields: [brandId], references: [id], onDelete: SetNull)
-  seo       SeoMetadata? @relation(fields: [seoId], references: [id], onDelete: SetNull)
+  seo       SeoMetadata?
   createdBy User?        @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   categories ProductCategory[]
@@ -1103,6 +1131,9 @@ model InventoryMovement {
   type     InventoryMovementType
   quantity Int
 
+  quantityBefore Int
+  quantityAfter  Int
+
   referenceType String?
   referenceId   String?
 
@@ -1122,16 +1153,24 @@ model InventoryMovement {
 // ============================================================
 
 model Cart {
-  id     String     @id @default(cuid())
-  userId String     @unique
+  id String @id @default(cuid())
+
+  userId     String?
+  guestToken String? @unique
+
   status CartStatus @default(ACTIVE)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   items CartItem[]
+
+  @@unique([userId, status])
+  @@index([userId])
+  @@index([guestToken])
+  @@index([status])
 }
 
 model CartItem {
@@ -1143,6 +1182,10 @@ model CartItem {
 
   variantId        String?
   listingVariantId String?
+
+  // Composite key to enforce unique items when listingVariantId is NULL
+  // Format: "listingId" for simple, "listingId:listingVariantId" for configurable
+  uniqueKey String
 
   quantity Int
 
@@ -1161,6 +1204,7 @@ model CartItem {
 
   listingVariant SellerListingVariant? @relation(fields: [listingVariantId], references: [id], onDelete: SetNull)
 
+  @@unique([cartId, uniqueKey])
   @@index([cartId])
   @@index([listingId])
   @@index([productId])
@@ -1903,8 +1947,6 @@ model Notification {
 model CmsPage {
   id String @id @default(cuid())
 
-  seoId String? @unique
-
   title   String
   slug    String  @unique
   content String? @db.Text
@@ -1916,22 +1958,9 @@ model CmsPage {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  seo SeoMetadata? @relation(fields: [seoId], references: [id], onDelete: SetNull)
+  seo SeoMetadata?
 
   @@index([status])
-}
-
-// ============================================================
-// SELLER SEO
-// ============================================================
-
-model SellerSeo {
-  id       String @id @default(cuid())
-  sellerId String @unique
-  seoId    String @unique
-
-  seller Seller      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  seo    SeoMetadata @relation(fields: [seoId], references: [id], onDelete: Cascade)
 }
 
 // ============================================================

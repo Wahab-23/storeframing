@@ -18,7 +18,11 @@ export function ProductImage({ product }: Props) {
     const [isHovered, setIsHovered] = useState(false)
     const [isPaused, setIsPaused] = useState(false)
     const [isVisible, setIsVisible] = useState(false)
-    const [isTouchDevice, setIsTouchDevice] = useState(false)
+    const [isTouchDevice] = useState(() => {
+        if (typeof window === "undefined") return false
+
+        return window.matchMedia('(hover: none) and (pointer: coarse)').matches
+    })
     const [touchStart, setTouchStart] = useState<number | null>(null)
     const [touchEnd, setTouchEnd] = useState<number | null>(null)
 
@@ -30,8 +34,6 @@ export function ProductImage({ product }: Props) {
     const hasMultiple = images.length > 1
 
     useEffect(() => {
-        setIsTouchDevice(window.matchMedia('(hover: none) and (pointer: coarse)').matches)
-
         const observer = new IntersectionObserver(
             ([entry]) => {
                 setIsVisible(entry.isIntersecting)
