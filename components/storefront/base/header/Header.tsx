@@ -9,7 +9,7 @@ import { defaultHeaderData } from "./defaultData";
 import { SearchBar } from "./SearchBar";
 import MegaMenu from "./mega-menu/MegaMenu";
 import { MobileMenu } from "./MobileMenu";
-import { useCart } from "@/lib/cart/CartContext";
+import { useCart } from "@/components/storefront/base/cart/CartContext";
 import { useWishlist } from "@/lib/wishlist/WishlistContext";
 
 // ─── Action icon map ──────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import React from "react";
 import Header from "@/components/storefront/base/header/Header";
 import Footer from "@/components/storefront/base/footer/Footer";
-import { CartProvider } from "@/lib/cart/CartContext";
+import { CartProvider } from "@/components/storefront/base/cart/CartContext";
 import { WishlistProvider } from "@/lib/wishlist/WishlistContext";
 import { SideCart } from "@/components/storefront/base/cart/SideCart";
 import { SideWishlist } from "@/components/storefront/base/wishlist/SideWishlist";

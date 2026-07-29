@@ -3,8 +3,8 @@ import { NextRequest } from "next/server";
 import { withApiHandler } from "@/lib/api-handler";
 import { UnauthorizedError, ValidationError } from "@/lib/errors";
 import { getCurrentUser } from "@/lib/getCurrentUser";
-import { adjustSellerListingInventory } from "@/lib/inventory/seller-inventory";
-import { inventoryAdjustmentSchema } from "@/lib/validators/inventory";
+import { updateSellerOrderStatus } from "@/lib/sellers/orders";
+import { sellerOrderStatusSchema } from "@/lib/validators/seller";
 
 type RouteContext = {
     params: Promise<{
@@ -12,7 +12,7 @@ type RouteContext = {
     }>;
 };
 
-export const POST = withApiHandler(async (request: NextRequest, context: RouteContext) => {
+export const PATCH = withApiHandler(async (request: NextRequest, context: RouteContext) => {
     const user = await getCurrentUser(request);
 
     if (!user) {
@@ -21,15 +21,11 @@ export const POST = withApiHandler(async (request: NextRequest, context: RouteCo
 
     const { id } = await context.params;
     const body = await request.json().catch(() => ({}));
-    const validation = inventoryAdjustmentSchema.safeParse(body);
+    const validation = sellerOrderStatusSchema.safeParse(body);
 
     if (!validation.success) {
         throw new ValidationError("Validation failed");
     }
 
-    return adjustSellerListingInventory({
-        userId: user.id,
-        listingId: id,
-        body: validation.data,
-    });
+    return updateSellerOrderStatus(user.id, id, validation.data);
 });

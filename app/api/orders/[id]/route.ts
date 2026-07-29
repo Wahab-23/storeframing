@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { withApiHandler } from "@/lib/api-handler";
 import { UnauthorizedError } from "@/lib/errors";
 import { getCurrentUser } from "@/lib/getCurrentUser";
-import { listSellerInventoryMovements } from "@/lib/inventory/seller-inventory";
+import { getCustomerOrderById } from "@/lib/orders/get-order";
 
 type RouteContext = {
     params: Promise<{
@@ -19,17 +19,9 @@ export const GET = withApiHandler(async (request: NextRequest, context: RouteCon
     }
 
     const { id } = await context.params;
-    const query = {
-        page: request.nextUrl.searchParams.get("page") ?? undefined,
-        limit: request.nextUrl.searchParams.get("limit") ?? undefined,
-        type: request.nextUrl.searchParams.get("type") ?? undefined,
-        from: request.nextUrl.searchParams.get("from") ?? undefined,
-        to: request.nextUrl.searchParams.get("to") ?? undefined,
-    };
 
-    return listSellerInventoryMovements({
+    return getCustomerOrderById({
         userId: user.id,
-        listingId: id,
-        query,
+        orderId: id,
     });
 });

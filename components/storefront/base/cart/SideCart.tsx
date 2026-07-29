@@ -15,7 +15,7 @@ import {
   Sparkles,
   Tag,
 } from "lucide-react";
-import { useCart } from "@/lib/cart/CartContext";
+import { useCart } from "./CartContext";
 
 function formatPrice(amount: number) {
   return new Intl.NumberFormat("en-PK", {

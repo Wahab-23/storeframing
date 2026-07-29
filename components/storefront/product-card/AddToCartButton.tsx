@@ -1,7 +1,7 @@
 'use client'
 
 import { Plus, Ban } from "lucide-react"
-import { useCart } from "@/lib/cart/CartContext"
+import { useCart } from "@/components/storefront/base/cart/CartContext"
 import { Product } from "./types"
 
 interface AddToCartButtonProps {

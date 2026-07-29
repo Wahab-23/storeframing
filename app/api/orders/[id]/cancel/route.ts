@@ -3,8 +3,8 @@ import { NextRequest } from "next/server";
 import { withApiHandler } from "@/lib/api-handler";
 import { UnauthorizedError, ValidationError } from "@/lib/errors";
 import { getCurrentUser } from "@/lib/getCurrentUser";
-import { adjustSellerListingInventory } from "@/lib/inventory/seller-inventory";
-import { inventoryAdjustmentSchema } from "@/lib/validators/inventory";
+import { cancelCustomerOrder } from "@/lib/orders/cancel-order";
+import { cancelOrderSchema } from "@/lib/validators/orders";
 
 type RouteContext = {
     params: Promise<{
@@ -21,15 +21,15 @@ export const POST = withApiHandler(async (request: NextRequest, context: RouteCo
 
     const { id } = await context.params;
     const body = await request.json().catch(() => ({}));
-    const validation = inventoryAdjustmentSchema.safeParse(body);
+    const validation = cancelOrderSchema.safeParse(body);
 
     if (!validation.success) {
         throw new ValidationError("Validation failed");
     }
 
-    return adjustSellerListingInventory({
+    return cancelCustomerOrder({
         userId: user.id,
-        listingId: id,
+        orderId: id,
         body: validation.data,
     });
 });

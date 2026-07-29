@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { X, Heart, Trash2, ShoppingCart, ArrowRight, Sparkles } from "lucide-react";
 import { useWishlist } from "@/lib/wishlist/WishlistContext";
-import { useCart } from "@/lib/cart/CartContext";
+import { useCart } from "@/components/storefront/base/cart/CartContext";
 
 function formatPrice(amount: number) {
   return new Intl.NumberFormat("en-PK", {
