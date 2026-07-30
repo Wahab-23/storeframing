@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
+import { withApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/getCurrentUser";
 import { createSlug } from "@/lib/slug";
@@ -21,7 +22,7 @@ const sellerApplicationSchema = z.object({
     businessEmail: z.email("Please provide a valid business email"),
 });
 
-export async function POST(request: NextRequest) {
+export const POST = withApiHandler(async (request: NextRequest) => {
     try {
         const user = await getCurrentUser(request);
 
@@ -86,4 +87,4 @@ export async function POST(request: NextRequest) {
         console.error("Seller application error:", err);
         return error("Something went wrong", 500);
     }
-}
+});

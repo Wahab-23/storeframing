@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
+import { withApiHandler } from "@/lib/api-handler";
+import { requirePermission } from "@/lib/admin/require-permission";
+import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/getCurrentUser";
-import { userHasPermission } from "@/lib/auth";
+import { adminSellerApprovalSchema } from "@/lib/validators/admin-moderation";
 
 type RouteContext = {
     params: Promise<{
@@ -10,38 +12,11 @@ type RouteContext = {
     }>;
 };
 
-export async function PATCH(
-    request: NextRequest,
-    context: RouteContext
-) {
-    try {
-        const admin = await getCurrentUser(request);
+export const PATCH = withApiHandler(
+    async (request: NextRequest, context: RouteContext) => {
+        adminSellerApprovalSchema.parse({});
 
-        if (!admin) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "Unauthorized",
-                },
-                { status: 401 }
-            );
-        }
-
-        const canApproveSeller = await userHasPermission(
-            admin.id,
-            "seller.approve"
-        );
-
-        if (!canApproveSeller) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "Forbidden",
-                },
-                { status: 403 }
-            );
-        }
-
+        const admin = await requirePermission(request, "admin:sellers:write");
         const { id: sellerId } = await context.params;
 
         const seller = await prisma.seller.findUnique({
@@ -58,26 +33,16 @@ export async function PATCH(
         });
 
         if (!seller) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "Seller not found",
-                },
-                { status: 404 }
-            );
+            throw new AppError(404, "Seller not found.");
         }
 
         if (
             seller.status !== "PENDING" ||
             seller.verificationStatus !== "PENDING"
         ) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message:
-                        "Only pending seller applications can be approved",
-                },
-                { status: 409 }
+            throw new AppError(
+                409,
+                "Only pending seller applications can be approved."
             );
         }
 
@@ -108,13 +73,10 @@ export async function PATCH(
                     action: "APPROVE",
                     entityType: "SELLER",
                     entityId: sellerId,
-
                     oldData: {
                         status: seller.status,
-                        verificationStatus:
-                            seller.verificationStatus,
+                        verificationStatus: seller.verificationStatus,
                     },
-
                     newData: {
                         status: "ACTIVE",
                         verificationStatus: "VERIFIED",
@@ -142,20 +104,9 @@ export async function PATCH(
             };
         });
 
-        return NextResponse.json({
-            success: true,
-            message: "Seller approved successfully",
+        return {
+            message: "Seller approved successfully.",
             data: result,
-        });
-    } catch (error) {
-        console.error("Approve seller error:", error);
-
-        return NextResponse.json(
-            {
-                success: false,
-                message: "Something went wrong",
-            },
-            { status: 500 }
-        );
+        };
     }
-}
+);

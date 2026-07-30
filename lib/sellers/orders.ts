@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors";
+import { settleSellerEarning } from "@/lib/earnings/settle-seller-earning";
 import { prisma } from "@/lib/prisma";
 
 import { sellerOrdersQuerySchema, sellerOrderStatusSchema } from "@/lib/validators/seller";
@@ -266,6 +267,14 @@ export async function updateSellerOrderStatus(
                 note: "Updated by seller.",
             },
         });
+
+        if (parsed.data.status === "COMPLETED") {
+            await settleSellerEarning({
+                tx,
+                sellerOrderId: sellerOrder.id,
+                sellerId: seller.id,
+            });
+        }
 
         const siblingOrders = await tx.sellerOrder.findMany({
             where: {

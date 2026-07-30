@@ -7,6 +7,10 @@ import { calculateCart } from "@/lib/cart/calculate-cart";
 import { getAvailableInventory } from "@/lib/cart/inventory";
 import { getOrCreateCart } from "@/lib/cart/getCart";
 import { getShippingFee } from "@/lib/checkout/helpers";
+import { evaluateCommission } from "@/lib/commission/evaluate-commission";
+import { allocateProportionally } from "@/lib/pricing/allocate";
+import { roundMoney } from "@/lib/pricing/rounding";
+import { createPendingEarning } from "@/lib/earnings/create-pending-earning";
 import { couponCartItemInclude, couponWithRelationsInclude } from "@/lib/coupons/constants";
 import { calculateCouponDiscount } from "@/lib/coupons/helpers";
 
@@ -17,10 +21,6 @@ type PlaceOrderInput = {
 
 function makeOrderNumber(prefix: string) {
     return `${prefix}-${Date.now()}-${randomUUID().slice(0, 8).toUpperCase()}`;
-}
-
-function roundMoney(value: number) {
-    return Math.round(value * 100) / 100;
 }
 
 export async function placeOrder({
@@ -119,10 +119,7 @@ export async function placeOrder({
             }
         }
 
-        const sellerBuckets = new Map<
-            string,
-            typeof freshCart.items
-        >();
+        const sellerBuckets = new Map<string, typeof freshCart.items>();
 
         for (const item of freshCart.items) {
             const sellerId = item.listing.seller.id;
@@ -237,6 +234,39 @@ export async function placeOrder({
             orderShippingAmount +
             summary.summary.tax;
 
+        const sellerEntries = [...sellerBuckets.entries()].map(
+            ([sellerId, items]) => {
+                const sellerSubtotal = items.reduce(
+                    (total, item) =>
+                        total + Number(item.unitPrice) * item.quantity,
+                    0
+                );
+
+                const categoryIds = new Set<string>();
+                const productIds = new Set<string>();
+
+                for (const item of items) {
+                    productIds.add(item.product.id);
+                    for (const category of item.product.categories) {
+                        categoryIds.add(category.categoryId);
+                    }
+                }
+
+                return {
+                    sellerId,
+                    items,
+                    sellerSubtotal: roundMoney(sellerSubtotal),
+                    categoryIds: [...categoryIds],
+                    productIds: [...productIds],
+                };
+            }
+        );
+
+        const sellerShippingAllocations = allocateProportionally(
+            orderShippingAmount,
+            sellerEntries.map((entry) => entry.sellerSubtotal)
+        );
+
         const sellerDiscounts = new Map<string, number>();
 
         if (couponEvaluation && couponEvaluation.itemDiscountAmount > 0) {
@@ -272,6 +302,21 @@ export async function placeOrder({
             });
         }
 
+        const commissionEvaluations = await Promise.all(
+            sellerEntries.map((entry, index) =>
+                evaluateCommission({
+                    sellerId: entry.sellerId,
+                    categoryIds: entry.categoryIds,
+                    productIds: entry.productIds,
+                    sellerSubtotal: roundMoney(
+                        entry.sellerSubtotal -
+                            (sellerDiscounts.get(entry.sellerId) ?? 0) +
+                            sellerShippingAllocations[index]
+                    ),
+                })
+            )
+        );
+
         const order = await tx.order.create({
             data: {
                 userId,
@@ -290,13 +335,18 @@ export async function placeOrder({
             },
         });
 
-        for (const [sellerId, items] of sellerBuckets.entries()) {
-            const sellerSubtotal = items.reduce(
-                (total, item) =>
-                    total + Number(item.unitPrice) * item.quantity,
-                0
-            );
+        for (const [index, entry] of sellerEntries.entries()) {
+            const { sellerId, items, sellerSubtotal } = entry;
             const sellerDiscount = sellerDiscounts.get(sellerId) ?? 0;
+            const sellerShippingAmount = sellerShippingAllocations[index] ?? 0;
+            const commissionAmount =
+                commissionEvaluations[index]?.commissionAmount ?? 0;
+            const totalAmount = roundMoney(
+                sellerSubtotal - sellerDiscount + sellerShippingAmount
+            );
+            const sellerEarning = roundMoney(
+                totalAmount - commissionAmount
+            );
 
             const sellerOrderNumber = makeOrderNumber("SO");
 
@@ -307,20 +357,44 @@ export async function placeOrder({
                     sellerOrderNumber,
                     status: "PENDING",
                     subtotal: sellerSubtotal,
-                    shippingAmount: 0,
+                    shippingAmount: sellerShippingAmount,
                     discountAmount: sellerDiscount,
                     taxAmount: 0,
-                    commissionAmount: 0,
-                    sellerEarning: roundMoney(
-                        sellerSubtotal - sellerDiscount
-                    ),
-                    totalAmount: roundMoney(
-                        sellerSubtotal - sellerDiscount
-                    ),
+                    commissionAmount,
+                    sellerEarning,
+                    totalAmount,
                 },
             });
 
-            for (const item of items) {
+            const itemDiscounts = allocateProportionally(
+                sellerDiscount,
+                items.map((item) => Number(item.unitPrice) * item.quantity)
+            );
+
+            await createPendingEarning({
+                tx,
+                sellerId,
+                sellerOrderId: sellerOrder.id,
+                grossAmount: totalAmount,
+                commissionAmount,
+            });
+
+            await tx.sellerWallet.upsert({
+                where: {
+                    sellerId,
+                },
+                update: {
+                    pendingBalance: {
+                        increment: roundMoney(totalAmount - commissionAmount),
+                    },
+                },
+                create: {
+                    sellerId,
+                    pendingBalance: roundMoney(totalAmount - commissionAmount),
+                },
+            });
+
+            for (const [itemIndex, item] of items.entries()) {
                 const inventoryRecord =
                     item.listingVariant?.inventory ??
                     item.listing.inventory;
@@ -372,10 +446,12 @@ export async function placeOrder({
                         sku: item.listingVariant?.variant?.sku ?? item.listing.sellerSku,
                         quantity: item.quantity,
                         unitPrice: item.unitPrice,
-                        discountAmount: 0,
+                        discountAmount: itemDiscounts[itemIndex] ?? 0,
                         taxAmount: 0,
-                        totalAmount:
-                            Number(item.unitPrice) * item.quantity,
+                        totalAmount: roundMoney(
+                            Number(item.unitPrice) * item.quantity -
+                                (itemDiscounts[itemIndex] ?? 0)
+                        ),
                         productSnapshot: {
                             product: item.product,
                             listing: {

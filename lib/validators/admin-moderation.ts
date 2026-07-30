@@ -26,3 +26,13 @@ export const adminProductStatusSchema = z
     .refine((data) => Boolean(data.status || data.visibility), {
         message: "At least one field must be provided.",
     });
+
+export const adminSellerApprovalSchema = z.object({});
+
+export const adminSellerRejectionSchema = z.object({
+    reason: z
+        .string()
+        .trim()
+        .min(5, "Rejection reason must be at least 5 characters.")
+        .max(1000),
+});

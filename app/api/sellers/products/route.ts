@@ -1,10 +1,12 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
+import { withApiHandler } from "@/lib/api-handler";
 import { success, error } from "@/lib/api-response";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/getCurrentUser";
+import { assertSellerCanCreateListing } from "@/lib/products/ownership";
 
 const createListingSchema = z.object({
     productId: z.string().min(1),
@@ -89,7 +91,7 @@ const listingsQuerySchema = z.object({
         .optional(),
 });
 
-export async function GET(request: NextRequest) {
+export const GET = withApiHandler(async (request: NextRequest) => {
     try {
         const user = await getCurrentUser(request);
 
@@ -229,9 +231,9 @@ export async function GET(request: NextRequest) {
         console.error(err);
         return error("Something went wrong", 500);
     }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withApiHandler(async (request: NextRequest) => {
     try {
         const user = await getCurrentUser(request);
 
@@ -281,12 +283,24 @@ export async function POST(request: NextRequest) {
             },
             select: {
                 id: true,
+                ownershipType: true,
+                ownerSellerId: true,
                 productType: true,
             },
         });
 
         if (!product) {
             return error("Product not found or unavailable", 404);
+        }
+
+        try {
+            assertSellerCanCreateListing(product, seller.id);
+        } catch (ownershipError) {
+            if (ownershipError instanceof AppError) {
+                return error(ownershipError.message, ownershipError.status);
+            }
+
+            throw ownershipError;
         }
 
         const existingListing =
@@ -393,4 +407,4 @@ export async function POST(request: NextRequest) {
 
         return error("Something went wrong", 500);
     }
-}
+});

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { withApiHandler } from "@/lib/api-handler";
-import { getAdminUser } from "@/lib/admin/auth";
+import { requirePermission } from "@/lib/admin/require-permission";
 import { moderateProduct } from "@/lib/admin/moderate-product";
 
 type RouteContext = {
@@ -11,7 +11,7 @@ type RouteContext = {
 };
 
 export const PATCH = withApiHandler(async (request: NextRequest, context: RouteContext) => {
-    const admin = await getAdminUser(request);
+    const admin = await requirePermission(request, "admin:products:write");
     const { id } = await context.params;
     const body = await request.json().catch(() => ({}));
 

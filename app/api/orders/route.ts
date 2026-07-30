@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
+import { withApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/getCurrentUser";
 import { success, error } from "@/lib/api-response";
@@ -26,7 +27,7 @@ const ordersQuerySchema = z.object({
     status: z.enum(orderStatusValues).optional(),
 });
 
-export async function GET(request: NextRequest) {
+export const GET = withApiHandler(async (request: NextRequest) => {
     try {
         const user = await getCurrentUser(request);
 
@@ -182,4 +183,4 @@ export async function GET(request: NextRequest) {
         console.error(err);
         return error("Something went wrong", 500);
     }
-}
+});

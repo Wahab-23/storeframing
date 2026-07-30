@@ -73,7 +73,6 @@ export async function listAdminUsers({ query }: ListUsersInput) {
     ]);
 
     return {
-        status: 200,
         message: "Users fetched successfully.",
         data: {
             users,

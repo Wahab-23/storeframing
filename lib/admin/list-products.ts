@@ -15,9 +15,10 @@ export async function listAdminProducts({ query }: ListProductsInput) {
         throw new AppError(400, "Validation failed.");
     }
 
-    const { page, limit, status, visibility, search } = parsed.data;
+    const { page, limit, status, ownershipType, visibility, search } = parsed.data;
     const where = {
         ...(status ? { status } : {}),
+        ...(ownershipType ? { ownershipType } : {}),
         ...(visibility ? { visibility } : {}),
         ...(search
             ? {
@@ -41,11 +42,19 @@ export async function listAdminProducts({ query }: ListProductsInput) {
                 id: true,
                 name: true,
                 slug: true,
+                ownershipType: true,
                 productType: true,
                 status: true,
                 visibility: true,
                 createdAt: true,
                 updatedAt: true,
+                ownerSeller: {
+                    select: {
+                        id: true,
+                        shopName: true,
+                        slug: true,
+                    },
+                },
                 brand: {
                     select: {
                         id: true,
@@ -85,7 +94,6 @@ export async function listAdminProducts({ query }: ListProductsInput) {
     ]);
 
     return {
-        status: 200,
         message: "Products fetched successfully.",
         data: {
             products,

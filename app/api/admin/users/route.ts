@@ -7,12 +7,7 @@ import { listAdminUsers } from "@/lib/admin/list-users";
 export const GET = withApiHandler(async (request: NextRequest) => {
     await getAdminUser(request);
 
-    const query = {
-        page: request.nextUrl.searchParams.get("page") ?? undefined,
-        limit: request.nextUrl.searchParams.get("limit") ?? undefined,
-        status: request.nextUrl.searchParams.get("status") ?? undefined,
-        search: request.nextUrl.searchParams.get("search") ?? undefined,
-    };
+    const query = Object.fromEntries(request.nextUrl.searchParams);
 
     return listAdminUsers({
         query,

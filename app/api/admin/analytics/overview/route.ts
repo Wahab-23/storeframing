@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 
 import { withApiHandler } from "@/lib/api-handler";
-import { getAdminUser } from "@/lib/admin/auth";
+import { requirePermission } from "@/lib/admin/require-permission";
 import { getAnalytics } from "@/lib/admin/get-analytics";
 
 export const GET = withApiHandler(async (request: NextRequest) => {
-    await getAdminUser(request);
+    await requirePermission(request, "admin:analytics:read");
 
     const query = {
         from: request.nextUrl.searchParams.get("from") ?? undefined,

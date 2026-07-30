@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { AppError } from "@/lib/errors";
 import { error, success } from "@/lib/api-response";
@@ -10,7 +10,7 @@ type Handler<T, TArgs extends unknown[] = []> = (
     data?: T;
     message?: string;
     status?: number;
-}>;
+} | NextResponse>;
 
 export function withApiHandler<T, TArgs extends unknown[] = []>(
     handler: Handler<T, TArgs>
@@ -18,6 +18,10 @@ export function withApiHandler<T, TArgs extends unknown[] = []>(
     return async (request: NextRequest, ...args: TArgs) => {
         try {
             const result = await handler(request, ...args);
+
+            if (result instanceof NextResponse) {
+                return result;
+            }
 
             return success(result.data, result.message, result.status);
         } catch (err) {

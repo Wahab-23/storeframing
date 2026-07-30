@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
-import { success, error } from "@/lib/api-response";
+import { withApiHandler } from "@/lib/api-handler";
 import { AppError } from "@/lib/errors";
 import { getCartSession } from "@/lib/cart/getCartSession";
 import { updateCartItem } from "@/lib/cart/update-item";
@@ -17,62 +17,32 @@ type RouteContext = {
     }>;
 };
 
-export async function PATCH(
-    request: NextRequest,
-    context: RouteContext
-) {
-    try {
-        const { id } = await context.params;
-        const body = await request.json();
-        const validation = updateCartItemBodySchema.safeParse(body);
+export const PATCH = withApiHandler(async (request: NextRequest, context: RouteContext) => {
+    const { id } = await context.params;
+    const body = await request.json().catch(() => ({}));
+    const validation = updateCartItemBodySchema.safeParse(body);
 
-        if (!validation.success) {
-            return error(
-                "Validation failed",
-                400,
-                validation.error.flatten().fieldErrors
-            );
-        }
-
-        const session = await getCartSession(request);
-        const result = await updateCartItem({
-            cart: session.cart,
-            user: session.user,
-            cartItemId: id,
-            body: validation.data,
-        });
-
-        return success(result.data, result.message, result.status);
-    } catch (err) {
-        if (err instanceof AppError) {
-            return error(err.message, err.status);
-        }
-
-        console.error(err);
-        return error("Something went wrong", 500);
+    if (!validation.success) {
+        throw new AppError(400, "Validation failed.");
     }
-}
 
-export async function DELETE(
-    request: NextRequest,
-    context: RouteContext
-) {
-    try {
-        const { id } = await context.params;
-        const session = await getCartSession(request);
-        const result = await removeCartItem({
-            cart: session.cart,
-            user: session.user,
-            cartItemId: id,
-        });
+    const session = await getCartSession(request);
 
-        return success(result.data, result.message, result.status);
-    } catch (err) {
-        if (err instanceof AppError) {
-            return error(err.message, err.status);
-        }
+    return updateCartItem({
+        cart: session.cart,
+        user: session.user,
+        cartItemId: id,
+        body: validation.data,
+    });
+});
 
-        console.error(err);
-        return error("Something went wrong", 500);
-    }
-}
+export const DELETE = withApiHandler(async (request: NextRequest, context: RouteContext) => {
+    const { id } = await context.params;
+    const session = await getCartSession(request);
+
+    return removeCartItem({
+        cart: session.cart,
+        user: session.user,
+        cartItemId: id,
+    });
+});

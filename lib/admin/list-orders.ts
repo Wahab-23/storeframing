@@ -89,7 +89,6 @@ export async function listAdminOrders({ query }: ListOrdersInput) {
     ]);
 
     return {
-        status: 200,
         message: "Orders fetched successfully.",
         data: {
             orders,

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
+import { withApiHandler } from "@/lib/api-handler";
 
 const registerSchema = z.object({
     email: z
@@ -30,134 +31,110 @@ const registerSchema = z.object({
         .optional(),
 });
 
-export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
+export const POST = withApiHandler(async (request: NextRequest) => {
+    const body = await request.json().catch(() => ({}));
 
-        const validationResult = registerSchema.safeParse(body);
+    const validationResult = registerSchema.safeParse(body);
 
-        if (!validationResult.success) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "Validation failed",
-                    errors: validationResult.error.flatten().fieldErrors,
-                },
-                { status: 400 }
-            );
-        }
-
-        const {
-            email,
-            password,
-            firstName,
-            lastName,
-            phone,
-        } = validationResult.data;
-
-        const existingUser = await prisma.user.findUnique({
-            where: {
-                email,
-            },
-        });
-
-        if (existingUser) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: "An account with this email already exists",
-                },
-                { status: 409 }
-            );
-        }
-
-        const passwordHash = await bcrypt.hash(password, 12);
-
-        const customerRole = await prisma.role.findFirst({
-            where: {
-                slug: "customer",
-                sellerId: null,
-            },
-        });
-
-        if (!customerRole) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message:
-                        "Customer role has not been configured. Please run the database seed.",
-                },
-                { status: 500 }
-            );
-        }
-
-        const user = await prisma.$transaction(async (tx) => {
-            const createdUser = await tx.user.create({
-                data: {
-                    email,
-                    passwordHash,
-                    firstName,
-                    lastName,
-                    phone,
-
-                    roleAssignments: {
-                        create: {
-                            roleId: customerRole.id,
-                        },
-                    },
-
-                    cart: {
-                        create: {},
-                    },
-
-                    wishlist: {
-                        create: {},
-                    },
-                },
-
-                select: {
-                    id: true,
-                    email: true,
-                    firstName: true,
-                    lastName: true,
-                    phone: true,
-                    status: true,
-                    createdAt: true,
-
-                    roleAssignments: {
-                        select: {
-                            role: {
-                                select: {
-                                    slug: true,
-                                },
-                            },
-                        },
-                    },
-                },
-            });
-
-            return createdUser;
-        });
-
-        return NextResponse.json(
-            {
-                success: true,
-                message: "Account created successfully",
-                data: {
-                    user,
-                },
-            },
-            { status: 201 }
-        );
-    } catch (error) {
-        console.error("Registration error:", error);
-
+    if (!validationResult.success) {
         return NextResponse.json(
             {
                 success: false,
-                message: "Something went wrong while creating your account",
+                message: "Validation failed",
+                errors: validationResult.error.flatten().fieldErrors,
+            },
+            { status: 400 }
+        );
+    }
+
+    const { email, password, firstName, lastName, phone } =
+        validationResult.data;
+
+    const existingUser = await prisma.user.findUnique({
+        where: {
+            email,
+        },
+    });
+
+    if (existingUser) {
+        return NextResponse.json(
+            {
+                success: false,
+                message: "An account with this email already exists",
+            },
+            { status: 409 }
+        );
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const customerRole = await prisma.role.findFirst({
+        where: {
+            slug: "customer",
+            sellerId: null,
+        },
+    });
+
+    if (!customerRole) {
+        return NextResponse.json(
+            {
+                success: false,
+                message:
+                    "Customer role has not been configured. Please run the database seed.",
             },
             { status: 500 }
         );
     }
-}
+
+    const user = await prisma.$transaction(async (tx) => {
+        return tx.user.create({
+            data: {
+                email,
+                passwordHash,
+                firstName,
+                lastName,
+                phone,
+                roleAssignments: {
+                    create: {
+                        roleId: customerRole.id,
+                    },
+                },
+                cart: {
+                    create: {},
+                },
+                wishlist: {
+                    create: {},
+                },
+            },
+            select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+                status: true,
+                createdAt: true,
+                roleAssignments: {
+                    select: {
+                        role: {
+                            select: {
+                                slug: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    });
+
+    return NextResponse.json(
+        {
+            success: true,
+            message: "Account created successfully",
+            data: {
+                user,
+            },
+        },
+        { status: 201 }
+    );
+});

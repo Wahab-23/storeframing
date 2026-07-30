@@ -24,8 +24,75 @@ export function getSearchClient(): Meilisearch {
 
 export const PRODUCTS_INDEX = "products";
 
+let productsIndexSetupPromise: Promise<void> | null = null;
+
 export function getProductsIndex(): Index {
     return getSearchClient().index(PRODUCTS_INDEX);
+}
+
+export async function ensureProductsIndex(): Promise<void> {
+    if (!productsIndexSetupPromise) {
+        productsIndexSetupPromise = (async () => {
+            const client = getSearchClient();
+            const indexes = await client.getIndexes();
+            const indexExists = indexes.results.some((index) => index.uid === PRODUCTS_INDEX);
+
+            if (!indexExists) {
+                const createTask = await client.createIndex(PRODUCTS_INDEX, {
+                    primaryKey: "id",
+                });
+                await client.tasks.waitForTask(createTask.taskUid);
+            }
+
+            const index = getProductsIndex();
+
+            const filterableTask = await index.updateFilterableAttributes([
+                "categoryIds",
+                "brandId",
+                "sellerId",
+                "condition",
+                "status",
+                "productType",
+                "price",
+                "averageRating",
+            ]);
+            await client.tasks.waitForTask(filterableTask.taskUid);
+
+            const sortableTask = await index.updateSortableAttributes([
+                "price",
+                "averageRating",
+                "reviewCount",
+                "createdAt",
+                "updatedAt",
+            ]);
+            await client.tasks.waitForTask(sortableTask.taskUid);
+
+            const searchableTask = await index.updateSearchableAttributes([
+                "name",
+                "description",
+                "shortDescription",
+                "brandName",
+                "shopName",
+                "categoryNames",
+            ]);
+            await client.tasks.waitForTask(searchableTask.taskUid);
+
+            const rankingTask = await index.updateRankingRules([
+                "words",
+                "typo",
+                "proximity",
+                "attribute",
+                "sort",
+                "exactness",
+            ]);
+            await client.tasks.waitForTask(rankingTask.taskUid);
+        })().catch((error) => {
+            productsIndexSetupPromise = null;
+            throw error;
+        });
+    }
+
+    await productsIndexSetupPromise;
 }
 
 // ============================================================
@@ -85,6 +152,7 @@ export async function indexProducts(
     docs: ProductSearchDocument[]
 ): Promise<void> {
     if (docs.length === 0) return;
+    await ensureProductsIndex();
     await getProductsIndex().addDocuments(docs, {
         primaryKey: "id",
     });
@@ -97,6 +165,7 @@ export async function updateProducts(
     docs: Partial<ProductSearchDocument> & { id: string }[]
 ): Promise<void> {
     if (docs.length === 0) return;
+    await ensureProductsIndex();
     await getProductsIndex().updateDocuments(docs, {
         primaryKey: "id",
     });
@@ -109,6 +178,7 @@ export async function deleteProducts(
     ids: string[]
 ): Promise<void> {
     if (ids.length === 0) return;
+    await ensureProductsIndex();
     await getProductsIndex().deleteDocuments(ids);
 }
 
@@ -137,6 +207,8 @@ export async function searchProducts(params: SearchParams) {
         facets,
     } = params;
 
+    await ensureProductsIndex();
+
     return getProductsIndex().search<ProductSearchDocument>(
         query,
         {
@@ -161,42 +233,5 @@ export async function searchProducts(params: SearchParams) {
  * Call this once during initial setup or after index creation.
  */
 export async function setupProductsIndex(): Promise<void> {
-    const index = getProductsIndex();
-
-    await index.updateFilterableAttributes([
-        "categoryIds",
-        "brandId",
-        "sellerId",
-        "condition",
-        "status",
-        "productType",
-        "price",
-        "averageRating",
-    ]);
-
-    await index.updateSortableAttributes([
-        "price",
-        "averageRating",
-        "reviewCount",
-        "createdAt",
-        "updatedAt",
-    ]);
-
-    await index.updateSearchableAttributes([
-        "name",
-        "description",
-        "shortDescription",
-        "brandName",
-        "shopName",
-        "categoryNames",
-    ]);
-
-    await index.updateRankingRules([
-        "words",
-        "typo",
-        "proximity",
-        "attribute",
-        "sort",
-        "exactness",
-    ]);
+    await ensureProductsIndex();
 }

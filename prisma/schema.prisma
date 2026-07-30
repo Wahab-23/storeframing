@@ -66,6 +66,29 @@ enum ProductType {
   BUNDLE
 }
 
+enum ProductOwnershipType {
+  PLATFORM
+  SELLER_EXCLUSIVE
+}
+
+enum ProductSubmissionStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_REVIEW
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  RESUBMITTED
+}
+
+enum ProductRevisionStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  PUBLISHED
+}
+
 enum ListingStatus {
   DRAFT
   PENDING_REVIEW
@@ -226,6 +249,11 @@ enum CommissionStatus {
   REVERSED
 }
 
+enum CommissionType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
 enum WalletTransactionType {
   SALE
   COMMISSION
@@ -251,6 +279,23 @@ enum ReviewStatus {
   APPROVED
   REJECTED
   HIDDEN
+}
+
+enum RefundType {
+  RETURN
+  CANCELLATION
+  DISPUTE
+  GOODWILL
+  SHIPPING
+  MANUAL
+}
+
+enum RefundSource {
+  RETURN_REQUEST
+  ORDER
+  PAYMENT
+  ADMIN
+  SYSTEM
 }
 
 enum ConversationStatus {
@@ -388,7 +433,12 @@ model User {
 
   auditLogs AuditLog[]
 
-  createdProducts Product[] @relation("ProductCreatedBy")
+  createdProducts            Product[]           @relation("ProductCreatedBy")
+  createdProductRevisions    ProductRevision[]   @relation("ProductRevisionCreatedBy")
+  reviewedProductRevisions   ProductRevision[]   @relation("ProductRevisionReviewedBy")
+  reviewedProductSubmissions ProductSubmission[] @relation("ProductSubmissionReviewedBy")
+
+  siteSettingsUpdated SiteSetting[] @relation("SiteSettingUpdatedBy")
 
   staffOfSeller Seller? @relation("SellerStaff", fields: [staffOfSellerId], references: [id], onDelete: SetNull)
 
@@ -533,7 +583,8 @@ model Seller {
   documents      SellerDocument[]
   payoutAccounts SellerPayoutAccount[]
 
-  products SellerListing[]
+  products      SellerListing[]
+  ownedProducts Product[]       @relation("ProductOwnedBySeller")
 
   sellerOrders SellerOrder[]
 
@@ -549,7 +600,8 @@ model Seller {
 
   commissionRules CommissionRule[]
 
-  coupons Coupon[]
+  coupons            Coupon[]
+  productSubmissions ProductSubmission[]
 
   vacation SellerVacation?
   policies SellerPolicy?
@@ -573,8 +625,9 @@ model SellerGroup {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sellers     Seller[]
-  permissions SellerGroupPermission[]
+  sellers         Seller[]
+  permissions     SellerGroupPermission[]
+  commissionRules CommissionRule[]
 }
 
 model SellerGroupPermission {
@@ -692,6 +745,37 @@ model SeoMetadata {
 }
 
 // ============================================================
+// SITE SETTINGS
+// ============================================================
+
+model SiteSetting {
+  id String @id @default(cuid())
+
+  siteName String?
+  siteUrl  String?
+
+  defaultTitle           String?
+  titleTemplate          String?
+  defaultMetaDescription String? @db.Text
+  defaultOgImageUrl      String?
+  defaultTwitterImageUrl String?
+
+  robots String?
+
+  organizationJson Json?
+  socialLinksJson  Json?
+
+  updatedByUserId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  updatedBy User? @relation("SiteSettingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([updatedByUserId])
+}
+
+// ============================================================
 // BRANDS
 // ============================================================
 
@@ -778,16 +862,20 @@ model Product {
 
   brandId String?
 
-  createdById String?
+  createdById         String?
+  ownerSellerId       String?
+  publishedRevisionId String? @unique
+  pendingRevisionId   String? @unique
 
   name             String
   slug             String  @unique
   description      String? @db.Text
   shortDescription String? @db.Text
 
-  productType ProductType       @default(SIMPLE)
-  status      ProductStatus     @default(DRAFT)
-  visibility  ProductVisibility @default(VISIBLE)
+  ownershipType ProductOwnershipType @default(PLATFORM)
+  productType   ProductType          @default(SIMPLE)
+  status        ProductStatus        @default(DRAFT)
+  visibility    ProductVisibility    @default(VISIBLE)
 
   modelNumber     String?
   manufacturer    String?
@@ -802,9 +890,12 @@ model Product {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  brand     Brand?       @relation(fields: [brandId], references: [id], onDelete: SetNull)
-  seo       SeoMetadata?
-  createdBy User?        @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  brand             Brand?           @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  seo               SeoMetadata?
+  createdBy         User?            @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  ownerSeller       Seller?          @relation("ProductOwnedBySeller", fields: [ownerSellerId], references: [id], onDelete: SetNull)
+  publishedRevision ProductRevision? @relation("ProductPublishedRevision", fields: [publishedRevisionId], references: [id], onDelete: SetNull)
+  pendingRevision   ProductRevision? @relation("ProductPendingRevision", fields: [pendingRevisionId], references: [id], onDelete: SetNull)
 
   categories ProductCategory[]
 
@@ -826,10 +917,87 @@ model Product {
 
   couponProducts CouponProduct[]
 
+  commissionRules    CommissionRule[]
+  productRevisions   ProductRevision[]   @relation("ProductRevisions")
+  productSubmissions ProductSubmission[] @relation("ProductSubmissions")
+
   @@index([brandId])
+  @@index([ownershipType])
+  @@index([ownerSellerId])
+  @@index([publishedRevisionId])
+  @@index([pendingRevisionId])
   @@index([status])
   @@index([productType])
   @@index([createdAt])
+}
+
+// ============================================================
+// PRODUCT REVISIONS
+// ============================================================
+
+model ProductRevision {
+  id String @id @default(cuid())
+
+  productId      String
+  revisionNumber Int
+
+  status  ProductRevisionStatus @default(DRAFT)
+  payload Json
+  summary String?               @db.Text
+
+  createdById    String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  publishedAt    DateTime?
+  rejectedReason String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product             Product  @relation("ProductRevisions", fields: [productId], references: [id], onDelete: Cascade)
+  createdBy           User?    @relation("ProductRevisionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedBy          User?    @relation("ProductRevisionReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  publishedForProduct Product? @relation("ProductPublishedRevision")
+  pendingForProduct   Product? @relation("ProductPendingRevision")
+
+  @@unique([productId, revisionNumber])
+  @@index([productId])
+  @@index([status])
+  @@index([createdById])
+  @@index([reviewedById])
+}
+
+// ============================================================
+// PRODUCT SUBMISSIONS
+// ============================================================
+
+model ProductSubmission {
+  id String @id @default(cuid())
+
+  sellerId  String
+  productId String?
+
+  title   String?
+  payload Json
+
+  status          ProductSubmissionStatus @default(DRAFT)
+  rejectionReason String?                 @db.Text
+
+  submittedAt  DateTime?
+  reviewedAt   DateTime?
+  reviewedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  seller     Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  product    Product? @relation("ProductSubmissions", fields: [productId], references: [id], onDelete: SetNull)
+  reviewedBy User?    @relation("ProductSubmissionReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([sellerId])
+  @@index([productId])
+  @@index([status])
+  @@index([reviewedById])
 }
 
 // ============================================================
@@ -1246,6 +1414,8 @@ model Order {
 
   payments Payment[]
 
+  refunds Refund[]
+
   shipments Shipment[]
 
   statusHistory OrderStatusHistory[]
@@ -1294,6 +1464,8 @@ model SellerOrder {
   shipments Shipment[]
 
   earnings SellerEarning[]
+
+  refunds Refund[]
 
   statusHistory SellerOrderStatusHistory[]
 
@@ -1424,6 +1596,8 @@ model Payment {
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
+  refunds Refund[]
+
   @@index([orderId])
   @@index([status])
   @@index([transactionId])
@@ -1499,20 +1673,34 @@ model TrackingEvent {
 model CommissionRule {
   id String @id @default(cuid())
 
-  sellerId   String?
-  categoryId String?
+  sellerId      String?
+  sellerGroupId String?
+  categoryId    String?
+  productId     String?
+
+  commissionType CommissionType
 
   percentage  Decimal? @db.Decimal(5, 2)
   fixedAmount Decimal? @db.Decimal(18, 2)
 
+  minimumOrderAmount Decimal? @db.Decimal(18, 2)
+  maximumOrderAmount Decimal? @db.Decimal(18, 2)
+
+  startAt DateTime?
+  endAt   DateTime?
+
   priority Int     @default(0)
   isActive Boolean @default(true)
 
-  seller   Seller?   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  seller      Seller?      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  sellerGroup SellerGroup? @relation(fields: [sellerGroupId], references: [id], onDelete: Cascade)
+  category    Category?    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  product     Product?     @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([sellerId])
+  @@index([sellerGroupId])
   @@index([categoryId])
+  @@index([productId])
   @@index([isActive])
 }
 
@@ -1837,13 +2025,20 @@ model ReturnItem {
 }
 
 model Refund {
-  id              String @id @default(cuid())
-  returnRequestId String @unique
+  id              String  @id @default(cuid())
+  returnRequestId String? @unique
+  orderId         String?
+  sellerOrderId   String?
+  paymentId       String?
 
   amount Decimal @db.Decimal(18, 2)
 
+  refundType   RefundType   @default(RETURN)
+  refundSource RefundSource @default(RETURN_REQUEST)
+
   status RefundStatus @default(PENDING)
 
+  reason        String? @db.Text
   transactionId String?
 
   processedAt DateTime?
@@ -1851,7 +2046,14 @@ model Refund {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  returnRequest ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Restrict)
+  returnRequest ReturnRequest? @relation(fields: [returnRequestId], references: [id], onDelete: Restrict)
+  order         Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  sellerOrder   SellerOrder?   @relation(fields: [sellerOrderId], references: [id], onDelete: SetNull)
+  payment       Payment?       @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([sellerOrderId])
+  @@index([paymentId])
 }
 
 // ============================================================

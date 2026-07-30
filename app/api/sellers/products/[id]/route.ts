@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import { success, error } from "@/lib/api-response";
+import { withApiHandler } from "@/lib/api-handler";
+import { error } from "@/lib/api-response";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/getCurrentUser";
@@ -72,7 +73,7 @@ async function getSellerListing(request: NextRequest, id: string) {
     const user = await getCurrentUser(request);
 
     if (!user) {
-        return { response: error("Unauthorized", 401) } as const;
+        throw new AppError(401, "Unauthorized");
     }
 
     const seller = await prisma.seller.findUnique({
@@ -86,13 +87,11 @@ async function getSellerListing(request: NextRequest, id: string) {
     });
 
     if (!seller) {
-        return { response: error("Seller profile not found", 404) } as const;
+        throw new AppError(404, "Seller profile not found");
     }
 
     if (seller.status !== "ACTIVE") {
-        return {
-            response: error("Only active sellers can manage listings", 403),
-        } as const;
+        throw new AppError(403, "Only active sellers can manage listings");
     }
 
     const listing = await prisma.sellerListing.findFirst({
@@ -163,82 +162,47 @@ async function getSellerListing(request: NextRequest, id: string) {
     });
 
     if (!listing) {
-        return { response: error("Listing not found", 404) } as const;
+        throw new AppError(404, "Listing not found");
     }
 
     return { seller, listing } as const;
 }
 
-export async function GET(
-    request: NextRequest,
-    context: RouteContext
-) {
-    try {
-        const { id } = await context.params;
-        const result = await getSellerListing(request, id);
+export const GET = withApiHandler(async (request: NextRequest, context: RouteContext) => {
+    const { id } = await context.params;
+    const result = await getSellerListing(request, id);
 
-        if ("response" in result) {
-            return result.response;
-        }
+    return {
+        message: "Listing fetched successfully",
+        data: {
+            listing: result.listing,
+        },
+    };
+});
 
-        return success(
-            {
-                listing: result.listing,
-            },
-            "Listing fetched successfully"
-        );
-    } catch (err) {
-        if (err instanceof AppError) {
-            return error(err.message, err.status);
-        }
+export const DELETE = withApiHandler(async (request: NextRequest, context: RouteContext) => {
+    const { id } = await context.params;
+    const result = await getSellerListing(request, id);
 
-        console.error(err);
-        return error("Something went wrong", 500);
-    }
-}
+    const updatedListing = await prisma.sellerListing.update({
+        where: {
+            id: result.listing.id,
+        },
+        data: {
+            status: "ARCHIVED",
+            deletedAt: new Date(),
+        },
+    });
 
-export async function DELETE(
-    request: NextRequest,
-    context: RouteContext
-) {
-    try {
-        const { id } = await context.params;
-        const result = await getSellerListing(request, id);
+    return {
+        message: "Listing archived successfully",
+        data: {
+            listing: updatedListing,
+        },
+    };
+});
 
-        if ("response" in result) {
-            return result.response;
-        }
-
-        const updatedListing = await prisma.sellerListing.update({
-            where: {
-                id: result.listing.id,
-            },
-            data: {
-                status: "ARCHIVED",
-                deletedAt: new Date(),
-            },
-        });
-
-        return success(
-            {
-                listing: updatedListing,
-            },
-            "Listing archived successfully"
-        );
-    } catch (err) {
-        if (err instanceof AppError) {
-            return error(err.message, err.status);
-        }
-
-        console.error(err);
-        return error("Something went wrong", 500);
-    }
-}
-
-export async function PATCH(
-    request: NextRequest,
-    context: RouteContext
-) {
+export const PATCH = withApiHandler(async (request: NextRequest, context: RouteContext) => {
     try {
         const { id } = await context.params;
 
@@ -424,4 +388,4 @@ export async function PATCH(
 
         return error("Something went wrong", 500);
     }
-}
+});

@@ -1,66 +1,41 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+
+import { withApiHandler } from "@/lib/api-handler";
+import { AppError } from "@/lib/errors";
 import { searchProducts } from "@/lib/search";
+import { searchQuerySchema } from "@/lib/validators/search";
 
-/**
- * GET /api/search?q=...&page=1&limit=20&filter=...&sort=...&facets=...
- *
- * Query params:
- *  q       - search query string (required)
- *  page    - page number (default: 1)
- *  limit   - hits per page (default: 20, max: 100)
- *  filter  - Meilisearch filter string, e.g. "brandId = abc AND price < 500"
- *  sort    - comma-separated sort fields, e.g. "price:asc,averageRating:desc"
- *  facets  - comma-separated attributes to return facet counts for
- */
-export async function GET(request: NextRequest) {
-    const { searchParams } = request.nextUrl;
-
-    const q = searchParams.get("q") ?? "";
-    const page = Math.max(1, Number(searchParams.get("page")) || 1);
-    const limit = Math.min(
-        100,
-        Math.max(1, Number(searchParams.get("limit")) || 20)
+export const GET = withApiHandler(async (request: NextRequest) => {
+    const parsed = searchQuerySchema.safeParse(
+        Object.fromEntries(request.nextUrl.searchParams.entries())
     );
 
-    const filterParam = searchParams.get("filter");
-    const sortParam = searchParams.get("sort");
-    const facetsParam = searchParams.get("facets");
-
-    const sort = sortParam
-        ? sortParam.split(",").map((s) => s.trim())
-        : undefined;
-
-    const facets = facetsParam
-        ? facetsParam.split(",").map((f) => f.trim())
-        : undefined;
-
-    try {
-        const results = await searchProducts({
-            query: q,
-            filter: filterParam ?? undefined,
-            sort,
-            offset: (page - 1) * limit,
-            limit,
-            facets,
-        });
-
-        return NextResponse.json({
-            success: true,
-            data: {
-                hits: results.hits,
-                query: results.query,
-                processingTimeMs: results.processingTimeMs,
-                estimatedTotalHits: results.estimatedTotalHits,
-                offset: results.offset,
-                limit: results.limit,
-                facetDistribution: results.facetDistribution,
-            },
-        });
-    } catch (err) {
-        console.error("[search] Error:", err);
-        return NextResponse.json(
-            { success: false, message: "Search failed." },
-            { status: 500 }
-        );
+    if (!parsed.success) {
+        throw new AppError(400, "Validation failed.");
     }
-}
+
+    const { q, page, limit, filter, sort, facets } = parsed.data;
+
+    const results = await searchProducts({
+        query: q,
+        filter,
+        sort: sort ? sort.split(",").map((value) => value.trim()) : undefined,
+        offset: (page - 1) * limit,
+        limit,
+        facets: facets
+            ? facets.split(",").map((value) => value.trim())
+            : undefined,
+    });
+
+    return {
+        data: {
+            hits: results.hits,
+            query: results.query,
+            processingTimeMs: results.processingTimeMs,
+            estimatedTotalHits: results.estimatedTotalHits,
+            offset: results.offset,
+            limit: results.limit,
+            facetDistribution: results.facetDistribution,
+        },
+    };
+});

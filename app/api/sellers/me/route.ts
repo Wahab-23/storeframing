@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
+import { withApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/getCurrentUser";
 import { createSlug } from "@/lib/slug";
@@ -16,7 +17,7 @@ const updateSellerSchema = z.object({
     businessPhone: z.string().min(7).max(20).nullable().optional(),
 });
 
-export async function GET(request: NextRequest) {
+export const GET = withApiHandler(async (request: NextRequest) => {
     try {
         const user = await getCurrentUser(request);
 
@@ -42,9 +43,9 @@ export async function GET(request: NextRequest) {
         console.error(err);
         return error("Something went wrong", 500);
     }
-}
+});
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withApiHandler(async (request: NextRequest) => {
     try {
         const user = await getCurrentUser(request);
 
@@ -137,4 +138,4 @@ export async function PATCH(request: NextRequest) {
         console.error(err);
         return error("Something went wrong", 500);
     }
-}
+});

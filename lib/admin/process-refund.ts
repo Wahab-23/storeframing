@@ -1,5 +1,6 @@
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+import { reverseSellerEarning } from "@/lib/earnings/reverse-seller-earning";
 
 import { processRefundSchema } from "@/lib/validators/refunds";
 
@@ -246,6 +247,7 @@ export async function processReturnRefund({
             },
             select: {
                 id: true,
+                sellerId: true,
                 status: true,
                 items: {
                     select: {
@@ -257,25 +259,49 @@ export async function processReturnRefund({
         });
 
         for (const sellerOrder of updatedSellerOrders) {
-            const sellerOrderItems = sellerOrder.items;
-            const sellerOrderReturned = sellerOrderItems.every((item) => {
-                const returnedQuantity = returnRequest.items
-                    .filter((returnItem) => returnItem.orderItem.sellerOrderId === sellerOrder.id)
-                    .reduce((sum, returnItem) => sum + returnItem.quantity, 0);
+            const sellerRefundAmount = roundMoney(
+                returnRequest.items
+                    .filter(
+                        (returnItem) =>
+                            returnItem.orderItem.sellerOrderId ===
+                            sellerOrder.id
+                    )
+                    .reduce((sum, returnItem) => {
+                        const orderItem = returnItem.orderItem;
+                        const unitAmount =
+                            Number(orderItem.totalAmount) /
+                            orderItem.quantity;
 
-                return returnedQuantity >= item.quantity;
-            });
+                        return sum + unitAmount * returnItem.quantity;
+                    }, 0)
+            );
 
-            if (!sellerOrderReturned) {
+            if (sellerRefundAmount <= 0) {
                 continue;
             }
+
+            const sellerOrderFullyReturned =
+                sellerOrder.items.every((item) => {
+                    const returnedQuantity = returnRequest.items
+                        .filter(
+                            (returnItem) =>
+                                returnItem.orderItem.sellerOrderId ===
+                                sellerOrder.id &&
+                                returnItem.orderItemId === item.id
+                        )
+                        .reduce((sum, returnItem) => sum + returnItem.quantity, 0);
+
+                    return returnedQuantity >= item.quantity;
+                });
 
             await tx.sellerOrder.update({
                 where: {
                     id: sellerOrder.id,
                 },
                 data: {
-                    status: fullyReturned ? "REFUNDED" : "PARTIALLY_REFUNDED",
+                    status: sellerOrderFullyReturned
+                        ? "REFUNDED"
+                        : "PARTIALLY_REFUNDED",
                 },
             });
 
@@ -283,12 +309,21 @@ export async function processReturnRefund({
                 data: {
                     sellerOrderId: sellerOrder.id,
                     fromStatus: sellerOrder.status,
-                    toStatus: fullyReturned
+                    toStatus: sellerOrderFullyReturned
                         ? "REFUNDED"
                         : "PARTIALLY_REFUNDED",
                     source: "ADMIN",
                     note: "Refund processed by admin.",
                 },
+            });
+
+            await reverseSellerEarning({
+                tx,
+                sellerOrderId: sellerOrder.id,
+                sellerId: sellerOrder.sellerId,
+                amount: sellerRefundAmount,
+                reason: "Refund processed by admin.",
+                referenceId: returnRequest.id,
             });
         }
 

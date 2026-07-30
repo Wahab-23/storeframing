@@ -43,6 +43,11 @@ const productStatusValues = [
     "ARCHIVED",
 ] as const;
 
+const productOwnershipTypeValues = [
+    "PLATFORM",
+    "SELLER_EXCLUSIVE",
+] as const;
+
 const productVisibilityValues = [
     "VISIBLE",
     "HIDDEN",
@@ -50,32 +55,27 @@ const productVisibilityValues = [
 
 export const adminOverviewSchema = z.object({});
 
-export const adminUsersQuerySchema = z.object({
+const basePaginationSchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),
-    status: z.enum(userStatusValues).optional(),
     search: z.string().trim().min(1).max(100).optional(),
 });
 
-export const adminSellersQuerySchema = z.object({
-    page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(100).default(20),
+export const adminUsersQuerySchema = basePaginationSchema.extend({
+    status: z.enum(userStatusValues).optional(),
+});
+
+export const adminSellersQuerySchema = basePaginationSchema.extend({
     status: z.enum(sellerStatusValues).optional(),
     verificationStatus: z.enum(verificationStatusValues).optional(),
-    search: z.string().trim().min(1).max(100).optional(),
 });
 
-export const adminOrdersQuerySchema = z.object({
-    page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(100).default(20),
+export const adminOrdersQuerySchema = basePaginationSchema.extend({
     status: z.enum(orderStatusValues).optional(),
-    search: z.string().trim().min(1).max(100).optional(),
 });
 
-export const adminProductsQuerySchema = z.object({
-    page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(100).default(20),
+export const adminProductsQuerySchema = basePaginationSchema.extend({
     status: z.enum(productStatusValues).optional(),
+    ownershipType: z.enum(productOwnershipTypeValues).optional(),
     visibility: z.enum(productVisibilityValues).optional(),
-    search: z.string().trim().min(1).max(100).optional(),
 });

@@ -74,7 +74,6 @@ export async function listAdminSellers({ query }: ListSellersInput) {
     ]);
 
     return {
-        status: 200,
         message: "Sellers fetched successfully.",
         data: {
             sellers,
