@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 
 import { withApiHandler } from "@/lib/api-handler";
 import { error } from "@/lib/api-response";
-import { requireAdminAccess } from "@/lib/admin/require-admin-access";
+import { requirePermission } from "@/lib/admin/require-permission";
 import {
     deleteCategorySafely,
     getAdminCategoryById,
@@ -17,14 +17,13 @@ type RouteContext = {
 };
 
 export const GET = withApiHandler(async (request: NextRequest, context: RouteContext) => {
-    await requireAdminAccess(request);
     const { id } = await context.params;
 
     return getAdminCategoryById(id);
 });
 
 export const PATCH = withApiHandler(async (request: NextRequest, context: RouteContext) => {
-    await requireAdminAccess(request);
+    await requirePermission(request, "catalogue:categories:write");
     const { id } = await context.params;
     const body = await request.json().catch(() => ({}));
     const parsed = adminCategoryUpdateSchema.safeParse(body);
@@ -45,7 +44,7 @@ export const PATCH = withApiHandler(async (request: NextRequest, context: RouteC
 });
 
 export const DELETE = withApiHandler(async (request: NextRequest, context: RouteContext) => {
-    await requireAdminAccess(request);
+    await requirePermission(request, "catalogue:categories:write");
     const { id } = await context.params;
 
     return deleteCategorySafely(id);

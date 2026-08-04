@@ -1,0 +1,55 @@
+- `[x]` Admin shell: authentication, layout, sidebar, shared tables/forms
+  - `[x]` Create `/admin/login` page UI and route
+  - `[x]` Update `proxy.ts` to enforce authentication for all `/admin/*` routes (except `/admin/login`)
+  - `[x]` Create `app/admin/layout.tsx` (sidebar, header, breadcrumbs, search)
+  - `[x]` Create `/admin/dashboard` page UI (KPI Hero, Stat Cards, Analytics Chart, Mini Calendar, Activity Feed, Data Table)
+- `[x]` Real RBAC and server-side permission checks
+- `[x]` Catalogue foundation: Categories, Brands, Attributes and Media
+  - `[x]` Create `GET/POST /api/admin/brands`
+  - `[x]` Create `GET/POST /api/admin/attributes`
+  - `[x]` Create `GET/POST /api/admin/content/media`
+- `[x]` Platform Products, Seller Listings, Inventory and Buy Box
+  - `[x]` Create `GET /api/admin/listings`
+  - `[x]` Create `GET /api/admin/buy-box`
+  - `[x]` Create `GET/POST /api/admin/inventory`
+- `[x]` Sellers, approvals, verification, submissions and revisions
+  - `[x]` Create `GET /api/admin/sellers/approvals`
+  - `[x]` Create `GET/POST /api/admin/sellers/verification`
+  - `[x]` Create `GET /api/admin/sellers/performance`
+  - `[x]` Create `GET /api/admin/sellers/staff`
+- `[ ]` Customers, reviews and support
+  - `[ ]` Create `GET /api/admin/customers`
+  - `[ ]` Create `GET/DELETE /api/admin/customers/reviews`
+  - `[ ]` Create `GET /api/admin/customers/support-history`
+  - `[ ]` Create `GET /api/admin/support/conversations`
+  - `[ ]` Create `GET/PATCH /api/admin/support/tickets`
+  - `[ ]` Create `GET/PATCH /api/admin/support/disputes`
+- `[ ]` Orders, payments, shipments, returns and refunds
+  - `[ ]` Create `GET /api/admin/orders/seller-orders`
+  - `[ ]` Create `GET /api/admin/orders/payments`
+  - `[ ]` Create `GET /api/admin/orders/shipments`
+  - `[ ]` Create `GET /api/admin/orders/returns`
+  - `[ ]` Create `GET /api/admin/orders/refunds`
+- `[ ]` Finance: commissions, earnings, wallets, withdrawals, payouts and reconciliation
+  - `[ ]` Create `GET/POST /api/admin/finance/commission-rules`
+  - `[ ]` Create `GET /api/admin/finance/earnings`
+  - `[ ]` Create `GET /api/admin/finance/wallets`
+  - `[ ]` Create `GET /api/admin/finance/wallet-transactions`
+  - `[ ]` Create `GET/PATCH /api/admin/finance/withdrawals`
+  - `[ ]` Create `GET /api/admin/finance/payouts`
+  - `[ ]` Create `GET /api/admin/finance/reconciliation`
+- `[ ]` Marketing and Content
+  - `[ ]` Create `GET/POST /api/admin/marketing/coupons`
+  - `[ ]` Create `GET/POST /api/admin/marketing/promotions`
+  - `[ ]` Create `GET/POST /api/admin/marketing/featured-products`
+  - `[ ]` Create `GET/POST /api/admin/marketing/campaigns`
+  - `[ ]` Create `GET/POST /api/admin/content/pages`
+  - `[ ]` Create `GET/POST /api/admin/content/faqs`
+  - `[ ]` Create `GET/POST /api/admin/content/navigation`
+  - `[ ]` Create `GET/POST /api/admin/content/seo`
+- `[ ]` Reports, exports, notifications, settings, integrations and audit-log UI
+  - `[ ]` Create `GET /api/admin/reports/exports`
+  - `[ ]` Create `GET/POST /api/admin/roles`
+  - `[ ]` Create `GET /api/admin/permissions`
+  - `[ ]` Create `GET/POST /api/admin/notifications`
+  - `[ ]` Create `GET/POST /api/admin/integrations`

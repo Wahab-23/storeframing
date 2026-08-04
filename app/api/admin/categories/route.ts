@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { withApiHandler } from "@/lib/api-handler";
-import { requireAdminAccess } from "@/lib/admin/require-admin-access";
+import { requirePermission } from "@/lib/admin/require-permission";
 import { error } from "@/lib/api-response";
 import { listCategories, createCategory } from "@/lib/categories/manage";
 import {
@@ -10,8 +10,6 @@ import {
 } from "@/lib/validators/category";
 
 export const GET = withApiHandler(async (request: NextRequest) => {
-    await requireAdminAccess(request);
-
     const parsed = adminCategoryListQuerySchema.safeParse({
         page: request.nextUrl.searchParams.get("page") ?? undefined,
         limit: request.nextUrl.searchParams.get("limit") ?? undefined,
@@ -42,7 +40,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 });
 
 export const POST = withApiHandler(async (request: NextRequest) => {
-    await requireAdminAccess(request);
+    await requirePermission(request, "catalogue:categories:write");
 
     const body = await request.json().catch(() => ({}));
     const parsed = adminCategoryCreateSchema.safeParse(body);
