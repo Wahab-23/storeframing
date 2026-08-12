@@ -518,7 +518,164 @@ async function main() {
         },
     });
 
-    console.log("Demo users, catalog, and sample listing seeded successfully");
+    // Seeding Pending Sellers
+    const pendingSellersData = [
+        { id: "pending-seller-1", shopName: "TechGadgets Inc.", slug: "techgadgets-inc", email: "techgadgets@test.com" },
+        { id: "pending-seller-2", shopName: "Fashion Nova PK", slug: "fashion-nova-pk", email: "fashionnova@test.com" },
+        { id: "pending-seller-3", shopName: "HomeDecor Studio", slug: "homedecor-studio", email: "homedecor@test.com" },
+    ];
+    for (const ps of pendingSellersData) {
+        const userEmail = ps.email;
+        let uId = "";
+        const userExist = await prisma.user.findUnique({ where: { email: userEmail } });
+        if (userExist) {
+            uId = userExist.id;
+        } else {
+            uId = (await prisma.user.create({
+                data: {
+                    email: userEmail,
+                    passwordHash,
+                    firstName: ps.shopName.split(" ")[0],
+                    lastName: "Seller",
+                    status: "ACTIVE",
+                    roleAssignments: {
+                        create: { roleId: sellerRole.id }
+                    }
+                }
+            })).id;
+        }
+
+        await prisma.seller.upsert({
+            where: { id: ps.id },
+            update: { status: "PENDING" },
+            create: {
+                id: ps.id,
+                userId: uId,
+                shopName: ps.shopName,
+                slug: ps.slug,
+                status: "PENDING",
+            }
+        });
+    }
+
+    // Seeding Pending Product Submissions
+    const pendingProductsData = [
+        { id: "pending-prod-1", title: "Wireless Earbuds Pro", sellerId: seller.id },
+        { id: "pending-prod-2", title: "Organic Cotton Tee", sellerId: seller.id },
+    ];
+    for (const pp of pendingProductsData) {
+        await prisma.productSubmission.upsert({
+            where: { id: pp.id },
+            update: { status: "PENDING_REVIEW" },
+            create: {
+                id: pp.id,
+                sellerId: pp.sellerId,
+                title: pp.title,
+                payload: {},
+                status: "PENDING_REVIEW",
+            }
+        });
+    }
+
+    // Seeding Orders
+    const addressJson = {
+        firstName: "Demo",
+        lastName: "Customer",
+        addressLine1: "123 Market Street",
+        city: "San Francisco",
+        state: "CA",
+        postalCode: "94105",
+        countryCode: "US",
+        phone: "+15550000001",
+    };
+
+    console.log("Seeding orders and analytics data...");
+    const now = new Date();
+    // Delete existing seed orders / returns to avoid database unique constraint violations
+    await prisma.returnRequest.deleteMany({ where: { orderId: { startsWith: "seed-order-" } } });
+    await prisma.order.deleteMany({ where: { id: { startsWith: "seed-order-" } } });
+
+    for (let i = 0; i < 40; i++) {
+        const orderDate = new Date();
+        orderDate.setDate(now.getDate() - (i % 30));
+        orderDate.setHours(10 + (i % 12), (i * 13) % 60, 0, 0);
+
+        const amount = 50 + (i * 27) % 300;
+        const orderId = `seed-order-${i}`;
+        const orderNumber = `ORD-${10000 + i}`;
+
+        await prisma.order.create({
+            data: {
+                id: orderId,
+                userId: customerUserId,
+                orderNumber,
+                status: "DELIVERED",
+                subtotal: amount,
+                shippingAmount: 10,
+                discountAmount: 0,
+                taxAmount: amount * 0.05,
+                totalAmount: amount + 10 + amount * 0.05,
+                currency: "PKR",
+                billingAddress: addressJson,
+                shippingAddress: addressJson,
+                createdAt: orderDate,
+                updatedAt: orderDate,
+            }
+        });
+    }
+
+    // Seeding Return Requests
+    const returnRequestsData = [
+        { id: "seed-return-1", orderId: "seed-order-5", status: "REQUESTED" as const, reason: "DAMAGED" as const },
+        { id: "seed-return-2", orderId: "seed-order-15", status: "RECEIVED" as const, reason: "DEFECTIVE" as const },
+        { id: "seed-return-3", orderId: "seed-order-25", status: "INSPECTING" as const, reason: "WRONG_ITEM" as const },
+    ];
+    for (const rr of returnRequestsData) {
+        await prisma.returnRequest.upsert({
+            where: { id: rr.id },
+            update: {
+                status: rr.status,
+                reason: rr.reason,
+            },
+            create: {
+                id: rr.id,
+                orderId: rr.orderId,
+                userId: customerUserId,
+                status: rr.status,
+                reason: rr.reason,
+                description: "Seeded test dispute request.",
+            }
+        });
+    }
+
+    // Seeding Audit Logs
+    await prisma.auditLog.deleteMany({ where: { id: { startsWith: "seed-audit-" } } });
+
+    const auditLogsData = [
+        { id: "seed-audit-1", action: "APPROVE" as const, entityType: "Seller", entityId: seller.id, timeMinsAgo: 5 },
+        { id: "seed-audit-2", action: "CREATE" as const, entityType: "ProductSubmission", entityId: "pending-prod-1", timeMinsAgo: 45 },
+        { id: "seed-audit-3", action: "CREATE" as const, entityType: "Order", entityId: "seed-order-0", timeMinsAgo: 120 },
+        { id: "seed-audit-4", action: "REJECT" as const, entityType: "ProductSubmission", entityId: "pending-prod-2", timeMinsAgo: 180 },
+        { id: "seed-audit-5", action: "UPDATE" as const, entityType: "SiteSetting", entityId: "seed-setting", timeMinsAgo: 360 },
+    ];
+
+    for (const al of auditLogsData) {
+        const logDate = new Date();
+        logDate.setMinutes(logDate.getMinutes() - al.timeMinsAgo);
+
+        await prisma.auditLog.create({
+            data: {
+                id: al.id,
+                userId: customerUserId,
+                action: al.action,
+                entityType: al.entityType,
+                entityId: al.entityId,
+                createdAt: logDate,
+            }
+        });
+    }
+
+    console.log("Demo users, catalog, orders, audit logs, and sample listings seeded successfully");
     console.log("");
     console.log("Demo accounts (password for all: Password123!)");
     console.log("  customer@test.com   — customer");

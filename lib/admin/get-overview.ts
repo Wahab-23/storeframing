@@ -17,11 +17,19 @@ export async function getAdminOverview({
         throw new AppError(400, "Validation failed.");
     }
 
+    const period = parsed.data.period || "month";
+
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    let daysToQuery = 30;
+    if (period === "week") daysToQuery = 7;
+    else if (period === "month") daysToQuery = 30;
+    else if (period === "quarter") daysToQuery = 90;
+    else if (period === "year") daysToQuery = 365;
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - daysToQuery);
 
     const [
         totalRevenueResult,
@@ -35,6 +43,7 @@ export async function getAdminOverview({
         pendingSellersList,
         pendingSubmissionsList,
         auditLogs,
+        totalOrders,
     ] = await prisma.$transaction([
         // 1. Total revenue
         prisma.order.aggregate({
@@ -76,10 +85,10 @@ export async function getAdminOverview({
                 }
             }
         }),
-        // 8. Orders in last 30 days for sparkline
+        // 8. Orders in last period for sparkline
         prisma.order.findMany({
             where: {
-                createdAt: { gte: thirtyDaysAgo }
+                createdAt: { gte: startDate }
             },
             select: {
                 totalAmount: true,
@@ -120,30 +129,50 @@ export async function getAdminOverview({
                     }
                 }
             }
-        })
+        }),
+        // 12. Total Orders
+        prisma.order.count(),
     ]);
 
     const totalRevenue = Number(totalRevenueResult._sum.totalAmount ?? 0);
 
-    // Group 30 days chart
-    const chartMap: Record<string, number> = {};
-    for (let i = 29; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-        chartMap[dateStr] = 0;
+    // Group chart data
+    const chartMap: Record<string, { amount: number; ordersCount: number }> = {};
+    if (period === "year") {
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date();
+            d.setMonth(d.getMonth() - i);
+            const dateStr = d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+            chartMap[dateStr] = { amount: 0, ordersCount: 0 };
+        }
+        recentOrders.forEach(o => {
+            const dateStr = o.createdAt.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+            if (chartMap[dateStr] !== undefined) {
+                chartMap[dateStr].amount += Number(o.totalAmount);
+                chartMap[dateStr].ordersCount += 1;
+            }
+        });
+    } else {
+        for (let i = daysToQuery - 1; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+            chartMap[dateStr] = { amount: 0, ordersCount: 0 };
+        }
+        recentOrders.forEach(o => {
+            const dateStr = o.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+            if (chartMap[dateStr] !== undefined) {
+                chartMap[dateStr].amount += Number(o.totalAmount);
+                chartMap[dateStr].ordersCount += 1;
+            }
+        });
     }
 
-    recentOrders.forEach(o => {
-        const dateStr = o.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-        if (chartMap[dateStr] !== undefined) {
-            chartMap[dateStr] += Number(o.totalAmount);
-        }
-    });
-
-    const chart = Object.entries(chartMap).map(([date, amount]) => ({
+    const chart = Object.entries(chartMap).map(([date, val]) => ({
         date,
-        amount
+        amount: val.amount,
+        ordersCount: val.ordersCount,
+        averageOrderValue: val.ordersCount > 0 ? val.amount / val.ordersCount : 0
     }));
 
     // Map activities
@@ -206,7 +235,10 @@ export async function getAdminOverview({
                 totalRevenue,
                 activeSellers,
                 totalCustomers,
-                ordersToday
+                ordersToday,
+                totalOrders,
+                averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
+                conversionRate: totalCustomers > 0 ? (totalOrders / totalCustomers) * 100 : 0,
             },
             hero: {
                 pendingSellers,

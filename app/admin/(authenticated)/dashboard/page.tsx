@@ -17,78 +17,224 @@ import {
   Zap,
 } from "lucide-react";
 
-const overviewMetrics = [
-  {
-    label: "Total GMV",
-    value: "$1.24M",
-    change: "+8.3% this month",
-    tone: "success",
-    icon: TrendingUp,
-  },
-  {
-    label: "Pending Approvals",
-    value: "17",
-    change: "Neutral",
-    tone: "info",
-    icon: Store,
-  },
-  {
-    label: "Platform Uptime",
-    value: "99.97%",
-    change: "30-day average",
-    tone: "warning",
-    icon: Zap,
-  },
-  {
-    label: "Open Disputes",
-    value: "3",
-    change: "2 fewer than yesterday",
-    tone: "danger",
-    icon: ShoppingBag,
-  },
-];
+interface DashboardData {
+  stats: {
+    totalRevenue: number;
+    activeSellers: number;
+    totalCustomers: number;
+    ordersToday: number;
+    totalOrders: number;
+    averageOrderValue: number;
+    conversionRate: number;
+  };
+  hero: {
+    pendingSellers: number;
+    pendingProducts: number;
+  };
+  metrics: {
+    totalGmv: number;
+    pendingApprovals: number;
+    uptime: string;
+    openDisputes: number;
+  };
+  chart: Array<{ date: string; amount: number; ordersCount?: number; averageOrderValue?: number }>;
+  activities: Array<{
+    type: string;
+    title: string;
+    desc: string;
+    time: string;
+  }>;
+  pendingApprovalsList: Array<{
+    name: string;
+    type: string;
+    submitted: string;
+    status: string;
+  }>;
+  health: {
+    apiResponseTime: string;
+    sellerFillRate: string;
+    orderFulfillment: string;
+    returnRate: string;
+  };
+}
 
-const chartData = [
-  40, 65, 48, 72, 55, 80, 68, 90, 74, 95, 82, 78, 85, 92, 70, 88,
-  76, 98, 84, 96, 79, 91, 87, 100, 83, 94, 88, 96, 90, 98,
-];
+function formatTimeAgo(dateString: string) {
+  if (!dateString) return "";
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffMs = now.getTime() - date.getTime();
+  if (isNaN(diffMs)) return dateString;
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d`;
+}
 
-const pendingApprovals = [
-  {
-    name: "TechGadgets Inc.",
-    type: "Seller",
-    submitted: "2 hours ago",
-    status: "PENDING",
-  },
-  {
-    name: "Wireless Earbuds Pro",
-    type: "Product",
-    submitted: "4 hours ago",
-    status: "REVIEW",
-  },
-  {
-    name: "Fashion Nova PK",
-    type: "Seller",
-    submitted: "6 hours ago",
-    status: "PENDING",
-  },
-  {
-    name: "Organic Cotton Tee",
-    type: "Product",
-    submitted: "1 day ago",
-    status: "REVIEW",
-  },
-  {
-    name: "HomeDecor Studio",
-    type: "Seller",
-    submitted: "2 days ago",
-    status: "PENDING",
-  },
-];
+const getFeedItemProps = (activity: { type?: string; title?: string; desc?: string; time?: string }) => {
+  let icon = Activity;
+  let variant: "success" | "info" | "warning" | "danger" = "info";
 
+  const type = activity.type || "";
+  const title = activity.title?.toLowerCase() || "";
+
+  if (type === "seller_approved" || title.includes("approved") || title.includes("success")) {
+    icon = CheckCircle2;
+    variant = "success";
+  } else if (type === "submission" || title.includes("submission") || title.includes("product")) {
+    icon = Package;
+    variant = "info";
+  } else if (type === "order" || title.includes("order")) {
+    icon = ShoppingBag;
+    variant = "warning";
+  } else if (title.includes("dispute") || title.includes("rejected") || title.includes("danger") || title.includes("fail")) {
+    icon = AlertTriangle;
+    variant = "danger";
+  } else if (title.includes("user") || title.includes("customer")) {
+    icon = Users;
+    variant = "info";
+  } else if (type === "commission" || title.includes("commission") || title.includes("setting") || title.includes("update")) {
+    icon = Zap;
+    variant = "success";
+  }
+
+  return { icon, variant };
+};
+
+const STORAGE_KEY_PERIOD = "admin_dashboard_period";
+const STORAGE_KEY_DATES = "admin_dashboard_selected_dates";
 
 export default function AdminDashboard() {
   const [Period, setPeriod] = useState("week");
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
+  const [hydrated, setHydrated] = useState(false);
+
+  // Restore cached values from localStorage after hydration (client-only)
+  useEffect(() => {
+    const savedPeriod = localStorage.getItem(STORAGE_KEY_PERIOD);
+    if (savedPeriod && ["week", "month", "quarter", "year"].includes(savedPeriod)) {
+      setPeriod(savedPeriod);
+    }
+    const savedDates = localStorage.getItem(STORAGE_KEY_DATES);
+    if (savedDates) {
+      try {
+        setSelectedDates(new Set<string>(JSON.parse(savedDates)));
+      } catch { /* ignore bad data */ }
+    }
+    setHydrated(true);
+  }, []);
+
+  // Persist period to localStorage
+  useEffect(() => {
+    if (hydrated) {
+      localStorage.setItem(STORAGE_KEY_PERIOD, Period);
+    }
+  }, [Period, hydrated]);
+
+  // Persist selected dates to localStorage
+  useEffect(() => {
+    if (hydrated) {
+      localStorage.setItem(STORAGE_KEY_DATES, JSON.stringify([...selectedDates]));
+    }
+  }, [selectedDates, hydrated]);
+
+  // Fetch data when period changes (skip until hydrated to avoid double-fetch)
+  useEffect(() => {
+    if (!hydrated) return;
+    setLoading(true);
+    const currentPeriod = Period;
+    fetch(`/api/admin/overview?period=${currentPeriod}`)
+      .then((res) => res.json())
+      .then((resData) => {
+        if (resData.data) {
+          setData(resData.data);
+          const chartDates: string[] = resData.data.chart.map((c: { date: string }) => c.date);
+          // If we have a cached selection, keep only dates that exist in the chart
+          setSelectedDates((prev) => {
+            if (prev.size > 0) {
+              const valid = new Set<string>([...prev].filter((d) => chartDates.includes(d)));
+              if (valid.size > 0) return valid;
+            }
+            // No valid cached dates — select all
+            return new Set<string>(chartDates);
+          });
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching overview data:", err);
+        setLoading(false);
+      });
+  }, [Period, hydrated]);
+
+  const maxAmount = data?.chart && data.chart.length > 0
+    ? Math.max(...data.chart.map((c) => c.amount), 1)
+    : 1;
+
+  const dynamicChartData = data?.chart ?? [];
+
+  // Multi-selection aggregation
+  const selectedItems = dynamicChartData.filter((item) => selectedDates.has(item.date));
+  const selectionRevenue = selectedItems.reduce((sum, item) => sum + item.amount, 0);
+  const selectionOrders = selectedItems.reduce((sum, item) => sum + (item.ordersCount ?? 0), 0);
+  const selectionAov = selectionOrders > 0 ? selectionRevenue / selectionOrders : 0;
+  const hasSelection = selectedDates.size > 0;
+
+  const dynamicOverviewMetrics = [
+    {
+      label: "Total GMV",
+      value: hasSelection
+        ? `Rs ${selectionRevenue.toLocaleString()}`
+        : data
+          ? `Rs ${data.metrics.totalGmv.toLocaleString()}`
+          : "Rs 0",
+      change: hasSelection
+        ? selectedDates.size === dynamicChartData.length
+          ? `Full ${Period} revenue`
+          : `${selectedDates.size} day${selectedDates.size > 1 ? "s" : ""} selected`
+        : `Total revenue in ${Period}`,
+      tone: "success",
+      icon: TrendingUp,
+    },
+    {
+      label: "Pending Approvals",
+      value: data ? String(data.metrics.pendingApprovals) : "0",
+      change: "Sellers & Products",
+      tone: "info",
+      icon: Store,
+    },
+    {
+      label: "Platform Uptime",
+      value: data?.metrics.uptime ?? "99.98%",
+      change: "30-day average",
+      tone: "warning",
+      icon: Zap,
+    },
+    {
+      label: "Open Disputes",
+      value: data ? String(data.metrics.openDisputes) : "0",
+      change: "Return requests",
+      tone: "danger",
+      icon: ShoppingBag,
+    },
+  ];
+
+  function toggleBar(item: typeof dynamicChartData[number]) {
+    setSelectedDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(item.date)) {
+        next.delete(item.date);
+      } else {
+        next.add(item.date);
+      }
+      return next;
+    });
+  }
+
   return (
     <main className="mx-auto max-w-screen-2xl space-y-6">
       {/* Dashboard Hero */}
@@ -117,7 +263,7 @@ export default function AdminDashboard() {
                 <div className="mb-2 flex items-center gap-2">
                   <span className="inline-flex items-center gap-2 rounded-full border border-pablano-100/25 bg-pablano-100/10 px-2.5 py-1 text-[10px] font-bold tracking-[0.16em] text-pablano-200">
                     <span className="h-1.5 w-1.5 rounded-full bg-pablano-100" />
-                    PLATFORM LIVE
+                    PLATFORM DEVELOPMENT MODE
                   </span>
                 </div>
 
@@ -128,11 +274,11 @@ export default function AdminDashboard() {
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-white-chalk-100/55">
                   You have{" "}
                   <span className="font-semibold text-sunflower-100">
-                    {pendingApprovals.filter((approval) => approval.status === "PENDING").length} seller applications
+                    {data?.hero.pendingSellers ?? 0} seller applications
                   </span>{" "}
                   and{" "}
                   <span className="font-semibold text-munsell-blue-200">
-                    {pendingApprovals.filter((approval) => approval.status === "REVIEW").length} products
+                    {data?.hero.pendingProducts ?? 0} products
                   </span>{" "}
                   awaiting your review.
                 </p>
@@ -159,7 +305,7 @@ export default function AdminDashboard() {
 
           {/* Overview metrics */}
           <div className="mt-7 grid overflow-hidden rounded-2xl border border-white-chalk-100/8 bg-matt-black-200/50 sm:grid-cols-2 lg:grid-cols-4">
-            {overviewMetrics.map((metric, index) => (
+            {dynamicOverviewMetrics.map((metric, index) => (
               <div
                 key={metric.label}
                 className={`relative px-5 py-4 ${index !== 0
@@ -216,9 +362,9 @@ export default function AdminDashboard() {
               {["week", "month", "quarter", "year"].map((item) => (
                 <button
                   key={item}
-                  className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold transition sm:flex-none ${item === Period
+                  className={`flex-1 cursor-pointer rounded-lg px-3 py-2 text-xs font-bold transition sm:flex-none ${item === Period
                     ? "bg-sunflower-100 text-matt-black-100 shadow-sm"
-                    : "text-matt-black-300 hover:bg-matt-black-100 hover:text-white-chalk-100"
+                    : "text-matt-black-300 hover:bg-matt-black-100/20 hover:text-white-chalk-100"
                     }`}
                   onClick={() => setPeriod(item)}
                 >
@@ -230,48 +376,92 @@ export default function AdminDashboard() {
 
           {/* Chart */}
           <div className="mt-7">
-            <div className="flex h-56 items-end gap-1 rounded-2xl border border-matt-black-500/20 bg-white-chalk-300 px-3 pb-3 pt-8 sm:gap-1.5">
-              {chartData.map((height, index) => (
-                <div
-                  key={`${height}-${index}`}
-                  className={`group relative flex-1 rounded-t-md transition-all duration-200 hover:opacity-100 ${index === chartData.length - 1
-                    ? "bg-sunflower-100"
-                    : index >= chartData.length - 4
-                      ? "bg-sunflower-200"
-                      : "bg-munsell-blue-100/20 hover:bg-munsell-blue-100/50"
-                    }`}
-                  style={{ height: `${height}%` }}
-                  title={`Day ${index + 1}: ${height}%`}
-                />
-              ))}
+            <div className="flex h-56 items-end gap-1 rounded-2xl border border-matt-black-500/20 bg-matt-black-200/20 px-3 pb-3 pt-8 sm:gap-1.5">
+              {dynamicChartData.map((item, index) => {
+                const heightPercent = Math.max(Math.min((item.amount / maxAmount) * 100, 100), 2);
+                const formattedAmount = `$${item.amount.toLocaleString()}`;
+                const isSelected = selectedDates.has(item.date);
+                const allSelected = selectedDates.size === dynamicChartData.length;
+                const noneSelected = selectedDates.size === 0;
+
+                const tooltipTitle = `${isSelected ? "✓ " : ""}${item.date}: ${formattedAmount} · ${item.ordersCount ?? 0} orders`;
+
+                return (
+                  <div
+                    key={`${item.date}-${index}`}
+                    onClick={() => toggleBar(item)}
+                    className={`group relative flex-1 rounded-t-md transition-all duration-300 cursor-pointer ${isSelected
+                      ? allSelected
+                        ? "bg-sunflower-100 opacity-90 hover:opacity-100"
+                        : "bg-sunflower-100 opacity-100 scale-[1.03]"
+                      : noneSelected
+                        ? "bg-munsell-blue-100/20 opacity-85 hover:opacity-100 hover:bg-munsell-blue-100/40"
+                        : "bg-munsell-blue-100/15 opacity-35 hover:opacity-60 hover:bg-munsell-blue-100/30"
+                      }`}
+                    style={{ height: `${heightPercent}%` }}
+                    title={tooltipTitle}
+                  />
+                );
+              })}
             </div>
 
             <div className="mt-3 flex justify-between px-1 text-[10px] font-medium uppercase tracking-wider text-matt-black-400">
-              <span>Jul 01</span>
-              <span>Jul 08</span>
-              <span>Jul 15</span>
-              <span>Jul 22</span>
-              <span>Today</span>
+              <span>{dynamicChartData[0]?.date || ""}</span>
+              <span>{dynamicChartData[Math.floor(dynamicChartData.length / 4)]?.date || ""}</span>
+              <span>{dynamicChartData[Math.floor(dynamicChartData.length / 2)]?.date || ""}</span>
+              <span>{dynamicChartData[Math.floor(dynamicChartData.length * 3 / 4)]?.date || ""}</span>
+              <span>{dynamicChartData[dynamicChartData.length - 1]?.date || "Today"}</span>
+            </div>
+          </div>
+
+          {/* Selection indicator */}
+          <div className="mt-6 flex items-center justify-between border-t border-matt-black-500/20 pt-4">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-matt-black-300">
+              {selectedDates.size === dynamicChartData.length
+                ? `Full ${Period} selected`
+                : selectedDates.size === 0
+                  ? `No selection — click bars to filter`
+                  : selectedDates.size === 1
+                    ? `Showing: ${[...selectedDates][0]}`
+                    : `${selectedDates.size} of ${dynamicChartData.length} days selected`}
+            </span>
+            <div className="flex gap-3">
+              {selectedDates.size > 0 && selectedDates.size < dynamicChartData.length && (
+                <button
+                  onClick={() => setSelectedDates(new Set(dynamicChartData.map(d => d.date)))}
+                  className="cursor-pointer text-[10px] font-bold text-munsell-blue-100 hover:text-munsell-blue-200 transition-colors uppercase tracking-wider"
+                >
+                  Select All
+                </button>
+              )}
+              {selectedDates.size > 0 && (
+                <button
+                  onClick={() => setSelectedDates(new Set())}
+                  className="cursor-pointer text-[10px] font-bold text-sunflower-100 hover:text-sunflower-200 transition-colors uppercase tracking-wider"
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
 
           {/* Revenue summary */}
-          <div className="mt-6 grid grid-cols-1 divide-y divide-matt-black-500/20 border-t border-matt-black-500/20 pt-2 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <div className="mt-4 grid grid-cols-1 divide-y divide-matt-black-500/20 border-t border-matt-black-500/20 pt-2 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             <SummaryMetric
-              label="Total Revenue"
-              value="$24,500"
+              label={hasSelection ? (selectedDates.size === 1 ? "Day's Revenue" : "Selected Revenue") : "Total Revenue"}
+              value={hasSelection ? `Rs ${selectionRevenue.toLocaleString()}` : (data ? `Rs ${data.stats.totalRevenue.toLocaleString()}` : "Rs 0")}
               valueClass="text-sunflower-100"
             />
 
             <SummaryMetric
-              label="Average Order Value"
-              value="$71.60"
+              label={hasSelection ? (selectedDates.size === 1 ? "Day's AOV" : "Selection AOV") : "Average Order Value"}
+              value={hasSelection ? `Rs ${selectionAov.toFixed(2)}` : (data ? `Rs ${data.stats.averageOrderValue.toFixed(2)}` : "Rs 0.00")}
               valueClass="text-munsell-blue-100"
             />
 
             <SummaryMetric
-              label="Conversion Rate"
-              value="3.4%"
+              label={hasSelection ? (selectedDates.size === 1 ? "Day's Orders" : "Total Orders") : "Conversion Rate"}
+              value={hasSelection ? `${selectionOrders} orders` : (data ? `${data.stats.conversionRate.toFixed(1)}%` : "0.0%")}
               valueClass="text-pablano-100"
             />
           </div>
@@ -303,53 +493,29 @@ export default function AdminDashboard() {
           </div>
 
           <div className="mt-6 space-y-1">
-            <FeedItem
-              icon={CheckCircle2}
-              variant="success"
-              title="Seller Approved"
-              description="TechGadgets Inc. was verified and onboarded."
-              time="10m"
-            />
-
-            <FeedItem
-              icon={Package}
-              variant="info"
-              title="New Product Submission"
-              description="Wireless Earbuds Pro is awaiting review."
-              time="1h"
-            />
-
-            <FeedItem
-              icon={ShoppingBag}
-              variant="warning"
-              title="High-Value Order"
-              description="Order #4920 generated $1,200 in GMV."
-              time="2h"
-            />
-
-            <FeedItem
-              icon={AlertTriangle}
-              variant="danger"
-              title="Dispute Raised"
-              description="A refund dispute was opened for order #4891."
-              time="3h"
-            />
-
-            <FeedItem
-              icon={Users}
-              variant="info"
-              title="Customer Milestone"
-              description="50 new customers joined the marketplace."
-              time="5h"
-            />
-
-            <FeedItem
-              icon={Zap}
-              variant="success"
-              title="Commission Updated"
-              description="Electronics commission was updated to 8%."
-              time="6h"
-            />
+            {loading ? (
+              <div className="text-center py-12 text-xs text-matt-black-300">
+                Loading activities...
+              </div>
+            ) : !data?.activities || data.activities.length === 0 ? (
+              <div className="text-center py-12 text-xs text-matt-black-300">
+                No recent activity.
+              </div>
+            ) : (
+              data.activities.map((activity, index) => {
+                const { icon, variant } = getFeedItemProps(activity);
+                return (
+                  <FeedItem
+                    key={index}
+                    icon={icon}
+                    variant={variant}
+                    title={activity.title}
+                    description={activity.desc}
+                    time={formatTimeAgo(activity.time)}
+                  />
+                );
+              })
+            )}
           </div>
 
           <button className="mt-5 flex w-full items-center justify-center rounded-xl border border-munsell-blue-100/20 bg-munsell-blue-100/5 py-2.5 text-xs font-bold text-munsell-blue-100 transition hover:bg-munsell-blue-100 hover:text-white-chalk-100">
@@ -362,14 +528,14 @@ export default function AdminDashboard() {
       {/* Pending approvals and platform health */}
       <section className="grid grid-cols-1 gap-5 2xl:grid-cols-3">
         {/* Approvals */}
-        <div className="overflow-hidden rounded-2xl border border-matt-black-500/30 bg-white-chalk-500 shadow-sm 2xl:col-span-2">
+        <div className="overflow-hidden rounded-2xl border border-matt-black-500/30 bg-matt-black-100 shadow-sm 2xl:col-span-2">
           <div className="flex flex-col gap-4 border-b border-matt-black-500/20 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-sunflower-100">
                 Action Required
               </p>
 
-              <h2 className="mt-1 font-sora text-lg font-bold text-matt-black-100">
+              <h2 className="mt-1 font-sora text-lg font-bold text-white-chalk-100">
                 Pending Approvals
               </h2>
 
@@ -378,14 +544,14 @@ export default function AdminDashboard() {
               </p>
             </div>
 
-            <button className="rounded-xl bg-matt-black-100 px-4 py-2.5 text-xs font-bold text-white-chalk-100 transition hover:bg-matt-black-200">
+            <button className="rounded-xl cursor-pointer bg-matt-black-200 px-4 py-2.5 text-xs font-bold text-white-chalk-100 transition hover:bg-matt-black-300/50">
               Review All
             </button>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-[680px] w-full">
-              <thead className="bg-white-chalk-300">
+            <table className="min-w-170 w-full">
+              <thead className="bg-matt-black-200">
                 <tr>
                   <TableHeader>Entity</TableHeader>
                   <TableHeader>Type</TableHeader>
@@ -396,61 +562,75 @@ export default function AdminDashboard() {
               </thead>
 
               <tbody>
-                {pendingApprovals.map((row) => (
-                  <tr
-                    key={row.name}
-                    className="border-t border-matt-black-500/15 transition hover:bg-sunflower-100/5"
-                  >
-                    <td className="px-5 py-4 text-sm font-semibold text-matt-black-100 sm:px-6">
-                      {row.name}
-                    </td>
-
-                    <td className="px-5 py-4 sm:px-6">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${row.type === "Seller"
-                          ? "bg-munsell-blue-100/10 text-munsell-blue-100"
-                          : "bg-pablano-100/10 text-pablano-100"
-                          }`}
-                      >
-                        {row.type}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4 text-xs font-medium text-matt-black-300 sm:px-6">
-                      {row.submitted}
-                    </td>
-
-                    <td className="px-5 py-4 sm:px-6">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${row.status === "PENDING"
-                          ? "bg-sunflower-100/15 text-sunflower-100"
-                          : "bg-cadmium-red-100/10 text-cadmium-red-100"
-                          }`}
-                      >
-                        {row.status}
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-4 text-right sm:px-6">
-                      <button className="text-xs font-bold text-munsell-blue-100 transition hover:text-munsell-blue-200">
-                        Review
-                      </button>
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-8 text-center text-xs text-matt-black-300 sm:px-6">
+                      Loading approvals...
                     </td>
                   </tr>
-                ))}
+                ) : !data?.pendingApprovalsList || data.pendingApprovalsList.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-8 text-center text-xs text-matt-black-300 sm:px-6">
+                      No pending approvals.
+                    </td>
+                  </tr>
+                ) : (
+                  data.pendingApprovalsList.map((row, index) => (
+                    <tr
+                      key={`${row.name}-${index}`}
+                      className="border-t border-matt-black-500/15 transition hover:bg-sunflower-100/5"
+                    >
+                      <td className="px-5 py-4 text-sm font-semibold text-white-chalk-100 sm:px-6">
+                        {row.name}
+                      </td>
+
+                      <td className="px-5 py-4 sm:px-6">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${row.type === "Seller"
+                            ? "bg-munsell-blue-100/10 text-munsell-blue-100"
+                            : "bg-pablano-100/10 text-pablano-100"
+                            }`}
+                        >
+                          {row.type}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4 text-xs font-medium text-matt-black-300 sm:px-6">
+                        {formatTimeAgo(row.submitted)} ago
+                      </td>
+
+                      <td className="px-5 py-4 sm:px-6">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${row.status === "PENDING"
+                            ? "bg-sunflower-100/15 text-sunflower-100"
+                            : "bg-cadmium-red-100/10 text-cadmium-red-100"
+                            }`}
+                        >
+                          {row.status}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4 text-right sm:px-6">
+                        <button className="cursor-pointer text-xs font-bold text-munsell-blue-100 transition hover:text-munsell-blue-200">
+                          Review
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
         {/* Platform health */}
-        <div className="flex flex-col rounded-2xl border border-matt-black-500/30 bg-white-chalk-500 p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col rounded-2xl border border-matt-black-500/30 bg-matt-black-100 p-5 shadow-sm sm:p-6">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-pablano-100">
               System Status
             </p>
 
-            <h2 className="mt-1 font-sora text-lg font-bold text-matt-black-100">
+            <h2 className="mt-1 font-sora text-lg font-bold text-white-chalk-100">
               Platform Health
             </h2>
 
@@ -462,28 +642,28 @@ export default function AdminDashboard() {
           <div className="mt-7 space-y-5">
             <HealthMetric
               label="API Response Time"
-              value="142ms"
+              value={data?.health.apiResponseTime ?? "128ms"}
               percentage={85}
               variant="success"
             />
 
             <HealthMetric
               label="Seller Fill Rate"
-              value="94.2%"
+              value={data?.health.sellerFillRate ?? "96.4%"}
               percentage={94}
               variant="info"
             />
 
             <HealthMetric
               label="Order Fulfillment"
-              value="98.6%"
+              value={data?.health.orderFulfillment ?? "99.1%"}
               percentage={99}
               variant="warning"
             />
 
             <HealthMetric
               label="Return Rate"
-              value="2.1%"
+              value={data?.health.returnRate ?? "1.8%"}
               percentage={20}
               variant="danger"
             />
@@ -557,7 +737,7 @@ function FeedItem({
   };
 
   return (
-    <div className="group flex gap-3 rounded-xl p-3 transition hover:bg-white-chalk-200">
+    <div className="group flex gap-3 rounded-xl p-3 transition hover:bg-matt-black-200">
       <div
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${styles[variant]}`}
       >
@@ -565,7 +745,7 @@ function FeedItem({
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-bold text-matt-black-100">
+        <p className="text-xs font-bold text-white-chalk-100">
           {title}
         </p>
 

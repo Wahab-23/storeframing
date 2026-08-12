@@ -53,7 +53,9 @@ const productVisibilityValues = [
     "HIDDEN",
 ] as const;
 
-export const adminOverviewSchema = z.object({});
+export const adminOverviewSchema = z.object({
+    period: z.enum(["week", "month", "quarter", "year"]).optional(),
+});
 
 const basePaginationSchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
