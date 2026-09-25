@@ -2,6 +2,9 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Set up PostgreSQL using the [migration guide](docs/postgresql-migrations.md).
+It covers both an empty database and an existing database created with `db push`.
+
 First, run the development server:
 
 ```bash

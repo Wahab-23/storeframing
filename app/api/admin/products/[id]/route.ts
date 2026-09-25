@@ -150,6 +150,22 @@ export const PATCH = withApiHandler(async (request: NextRequest, context: RouteC
         variants,
     } = body;
 
+    if (name !== undefined && (typeof name !== "string" || !name.trim())) {
+        throw new AppError(400, "Product name is required.");
+    }
+
+    if (slug !== undefined && (typeof slug !== "string" || !slug.trim())) {
+        throw new AppError(400, "Product URL key is required.");
+    }
+
+    const nextOwnershipType = ownershipType ?? existingProduct.ownershipType;
+    const nextOwnerSellerId = ownerSellerId !== undefined
+        ? ownerSellerId
+        : existingProduct.ownerSellerId;
+    if (nextOwnershipType === "SELLER_EXCLUSIVE" && !nextOwnerSellerId) {
+        throw new AppError(400, "An exclusive product must have an owner seller.");
+    }
+
     // Check slug collision if changing slug
     if (slug && slug !== existingProduct.slug) {
         const slugExists = await prisma.product.findFirst({

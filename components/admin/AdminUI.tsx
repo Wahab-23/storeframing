@@ -230,6 +230,7 @@ export interface AdminFilterBarProps {
   onSearchChange: (value: string) => void;
   searchPlaceholder?: string;
   statusFilter?: string;
+  statusPlaceholder?: string;
   onStatusChange?: (value: string) => void;
   statusOptions?: Array<{ label: string; value: string }>;
   onRefresh?: () => void;
@@ -242,6 +243,7 @@ export function AdminFilterBar({
   onSearchChange,
   searchPlaceholder = "Search records...",
   statusFilter,
+  statusPlaceholder = "All Statuses",
   onStatusChange,
   statusOptions,
   onRefresh,
@@ -270,7 +272,7 @@ export function AdminFilterBar({
             onChange={(e) => onStatusChange(e.target.value)}
             className="bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3 py-2 outline-none focus:border-sunflower-100/50 cursor-pointer"
           >
-            <option value="">All Statuses</option>
+            <option value="">{statusPlaceholder}</option>
             {statusOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}

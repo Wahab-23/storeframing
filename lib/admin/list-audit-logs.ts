@@ -15,7 +15,7 @@ export async function listAuditLogs({ query }: ListAuditLogsInput) {
         throw new AppError(400, "Validation failed.");
     }
 
-    const { page, limit, action, entityType, entityId, userId, from, to } =
+    const { page, limit, action, search, entityType, entityId, userId, from, to } =
         parsed.data;
 
     const where = {
@@ -23,6 +23,26 @@ export async function listAuditLogs({ query }: ListAuditLogsInput) {
         ...(entityType ? { entityType } : {}),
         ...(entityId ? { entityId } : {}),
         ...(userId ? { userId } : {}),
+        ...(search
+            ? {
+                  OR: [
+                      { entityType: { contains: search, mode: "insensitive" as const } },
+                      { entityId: { contains: search, mode: "insensitive" as const } },
+                      { userId: { contains: search, mode: "insensitive" as const } },
+                      {
+                          user: {
+                              is: {
+                                  OR: [
+                                      { email: { contains: search, mode: "insensitive" as const } },
+                                      { firstName: { contains: search, mode: "insensitive" as const } },
+                                      { lastName: { contains: search, mode: "insensitive" as const } },
+                                  ],
+                              },
+                          },
+                      },
+                  ],
+              }
+            : {}),
         ...((from || to)
             ? {
                   createdAt: {

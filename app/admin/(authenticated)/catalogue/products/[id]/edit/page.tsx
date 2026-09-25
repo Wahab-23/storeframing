@@ -81,8 +81,6 @@ interface VariantItem {
   id?: string;
   name: string;
   sku: string;
-  price?: string;
-  stock?: string;
 }
 
 interface SellerListingItem {
@@ -133,14 +131,14 @@ interface AuditLogItem {
 }
 
 const TABS = [
-  { id: "general", label: "General Settings", icon: Package },
-  { id: "content", label: "Content & Descriptions", icon: FileText },
-  { id: "images", label: "Images & Media", icon: ImageIcon },
-  { id: "pricing", label: "Pricing & Inventory", icon: DollarSign },
-  { id: "configurations", label: "Configurations / Variants", icon: Boxes },
-  { id: "seo", label: "Search Engine Optimization", icon: Globe },
-  { id: "marketplace", label: "Marketplace & Offers", icon: Store },
-  { id: "history", label: "History & Audit Trail", icon: History },
+  { id: "general", label: "Basics", description: "Name, brand, type, and categories", icon: Package },
+  { id: "content", label: "Description", description: "Product copy and details", icon: FileText },
+  { id: "images", label: "Photos & media", description: "Images and alt text", icon: ImageIcon },
+  { id: "pricing", label: "Pricing & stock", description: "Seller offer setup", icon: DollarSign },
+  { id: "configurations", label: "Variants", description: "Options and variant SKUs", icon: Boxes },
+  { id: "seo", label: "Search preview", description: "Search title and metadata", icon: Globe },
+  { id: "marketplace", label: "Seller offers", description: "Ownership and merchant offers", icon: Store },
+  { id: "history", label: "History", description: "Revisions and recorded events", icon: History },
 ];
 
 export default function EditProductPage({ params }: EditProductPageProps) {
@@ -183,14 +181,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Tab 4: Pricing & Inventory
-  const [price, setPrice] = useState("");
-  const [compareAtPrice, setCompareAtPrice] = useState("");
-  const [costPrice, setCostPrice] = useState("");
-  const [stockQuantity, setStockQuantity] = useState("100");
-  const [stockStatus, setStockStatus] = useState("IN_STOCK");
-
-  // Tab 5: Configurations / Variants
+  // Variants
   const [variantOptionName, setVariantOptionName] = useState("Size");
   const [variantValuesInput, setVariantValuesInput] = useState("Small, Medium, Large");
   const [variants, setVariants] = useState<VariantItem[]>([]);
@@ -276,13 +267,6 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
           if (p.listings && p.listings.length > 0) {
             setListings(p.listings);
-            setPrice(String(p.listings[0].price || ""));
-            setCompareAtPrice(
-              p.listings[0].compareAtPrice ? String(p.listings[0].compareAtPrice) : ""
-            );
-            if (p.listings[0].inventory) {
-              setStockQuantity(String(p.listings[0].inventory.quantity));
-            }
           }
 
           if (Array.isArray(p.variants) && p.variants.length > 0) {
@@ -291,8 +275,6 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                 id: v.id,
                 name: v.name,
                 sku: v.sku,
-                price: price || "0",
-                stock: stockQuantity || "10",
               }))
             );
           }
@@ -389,8 +371,6 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     const generated: VariantItem[] = values.map((val) => ({
       name: `${variantOptionName}: ${val}`,
       sku: `${baseSku}-${val.toUpperCase().replace(/[^A-Z0-9]/g, "")}`,
-      price: price || "0",
-      stock: stockQuantity || "50",
     }));
 
     setVariants(generated);
@@ -426,6 +406,16 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
   // Save handler (can either stay on page or navigate to index)
   const handleSave = async (stayOnPage = false) => {
+    if (!name.trim()) {
+      setActiveTab("general");
+      setErrorMsg("Add a product name before saving.");
+      return;
+    }
+    if (ownershipType === "SELLER_EXCLUSIVE" && !ownerSellerId) {
+      setActiveTab("marketplace");
+      setErrorMsg("Choose the seller who owns this exclusive product before saving.");
+      return;
+    }
     setSaving(true);
     setSuccessMsg(null);
     setErrorMsg(null);
@@ -635,7 +625,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
       {/* Magento 2 Style Studio: Left Sidebar Vertical Tabs + Right Content Area */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Left Column: Navigation Sidebar */}
-        <div className="lg:col-span-1">
+        <nav aria-label="Product sections" className="lg:col-span-1">
           <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-2.5 shadow-xl space-y-1 sticky top-24">
             <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white-chalk-100/40 border-b border-white-chalk-100/10 mb-1">
               Product Studio Tabs
@@ -649,6 +639,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
+                  aria-current={isActive ? "step" : undefined}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-left cursor-pointer ${
                     isActive
                       ? "bg-sunflower-100 text-matt-black-100 font-bold shadow-md shadow-sunflower-100/10"
@@ -657,7 +648,12 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                 >
                   <div className="flex items-center gap-2.5">
                     <Icon className="w-4 h-4 shrink-0" />
-                    <span>{tab.label}</span>
+                    <span>
+                      <span className="block text-xs font-semibold">{tab.label}</span>
+                      <span className={`block mt-0.5 text-[10px] font-normal ${isActive ? "text-matt-black-100/70" : "text-white-chalk-100/40"}`}>
+                        {tab.description}
+                      </span>
+                    </span>
                   </div>
                   {tab.id === "images" && images.length > 0 && (
                     <span
@@ -690,7 +686,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
               );
             })}
           </div>
-        </div>
+        </nav>
 
         {/* Right Column: Tab Panels */}
         <div className="lg:col-span-3 space-y-6">
@@ -722,15 +718,18 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      SKU (Stock Keeping Unit)
+                      SKU prefix for generated variants (optional)
                     </label>
                     <input
                       type="text"
                       value={sku}
                       onChange={(e) => setSku(e.target.value)}
-                      placeholder="e.g. SONY-WH1000XM5-BLK"
+                      placeholder="e.g. SONY-WH1000XM5"
                       className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
                     />
+                    <p className="mt-1 text-[10px] text-white-chalk-100/40">
+                      Used to suggest SKUs when you generate variants. Changing this does not edit existing variant or seller offer SKUs.
+                    </p>
                   </div>
 
                   <div>
@@ -1126,90 +1125,28 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
           {/* TAB 4: PRICING & INVENTORY */}
           {activeTab === "pricing" && (
-            <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl space-y-6">
+            <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl space-y-5">
               <div className="flex items-center gap-2 border-b border-white-chalk-100/10 pb-3">
                 <DollarSign className="w-4 h-4 text-sunflower-100" />
                 <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                  Pricing, Cost & Warehouse Inventory
+                  Pricing and inventory
                 </h3>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Catalog Base Price (Rs)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    placeholder="e.g. 8499"
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    MSRP / Compare-At Price (Rs)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={compareAtPrice}
-                    onChange={(e) => setCompareAtPrice(e.target.value)}
-                    placeholder="e.g. 9999"
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Cost Price (Internal Margin)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={costPrice}
-                    onChange={(e) => setCostPrice(e.target.value)}
-                    placeholder="e.g. 6200"
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Stock Quantity
-                  </label>
-                  <input
-                    type="number"
-                    value={stockQuantity}
-                    onChange={(e) => setStockQuantity(e.target.value)}
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Stock Availability Status
-                  </label>
-                  <select
-                    value={stockStatus}
-                    onChange={(e) => setStockStatus(e.target.value)}
-                    className="w-full bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-sunflower-100/50 cursor-pointer"
-                  >
-                    <option value="IN_STOCK">In Stock</option>
-                    <option value="OUT_OF_STOCK">Out of Stock</option>
-                    <option value="BACKORDER">Backorder Permitted</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-sunflower-100/10 border border-sunflower-100/20 text-xs text-white-chalk-100/80">
-                <p className="font-semibold text-sunflower-100 mb-1">Marketplace Dynamic Pricing</p>
-                In a multi-seller catalog, individual approved vendors can submit offers on this master SKU. The storefront will automatically display the Buy Box or lowest active offer from verified merchants.
+              <div className="rounded-xl border border-sunflower-100/20 bg-sunflower-100/5 p-4 space-y-2">
+                <p className="text-sm font-semibold text-white-chalk-100">Seller offers own the price and stock.</p>
+                <p className="text-xs leading-5 text-white-chalk-100/60">
+                  Price, compare-at price, cost, and inventory are stored on seller offers, not on the product record. These values are not edited by saving this product form.
+                </p>
+                <p className="text-xs text-white-chalk-100/60">
+                  Current offers: {listings.length}. Review them in the Seller offers section.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("marketplace")}
+                  className="text-xs font-semibold text-sunflower-100 hover:text-sunflower-200 underline underline-offset-2"
+                >
+                  View seller offers
+                </button>
               </div>
             </div>
           )}
@@ -1598,7 +1535,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                     </h3>
                   </div>
                   <span className="text-[10px] text-white-chalk-100/40">
-                    Full immutable audit history of published catalog versions
+                    Stored revision snapshots for this product
                   </span>
                 </div>
 
