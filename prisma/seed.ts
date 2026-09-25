@@ -1,19 +1,22 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "../generated/prisma/client";
-import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 
 const DEMO_PASSWORD = "Password123!";
 
-const adapter = new PrismaMariaDb({
-    host: process.env.DATABASE_HOST,
-    port: Number(process.env.DATABASE_PORT),
-    user: process.env.DATABASE_USER,
-    password: process.env.DATABASE_PASSWORD,
-    database: process.env.DATABASE_NAME,
-    allowPublicKeyRetrieval: true,
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL?.includes("localhost")
+        ? false
+        : { rejectUnauthorized: false },
 });
 
+// Cast needed: project uses @types/pg@8.23.1 but @prisma/adapter-pg internally
+// references @types/pg@8.20.0 — the two Pool types are structurally incompatible.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const adapter = new PrismaPg(pool as any);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
