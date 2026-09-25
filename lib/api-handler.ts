@@ -24,13 +24,14 @@ export function withApiHandler<T, TArgs extends unknown[] = []>(
             }
 
             return success(result.data, result.message, result.status);
-        } catch (err) {
+        } catch (err: any) {
             if (err instanceof AppError) {
                 return error(err.message, err.status);
             }
 
-            console.error(err);
-            return error("Internal Server Error", 500);
+            console.error("API Handler Error:", err);
+            const message = err?.message || "Internal Server Error";
+            return error(message, 500);
         }
     };
 }

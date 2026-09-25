@@ -9,7 +9,7 @@ export default function AdminAuthenticatedLayout({ children }: { children: React
       <div className="flex flex-col flex-1 overflow-hidden">
         <AdminHeader />
         <main
-          className="flex-1 overflow-y-auto p-6 custom-scrollbar"
+          className="flex-1 overflow-y-auto px-6 pb-6 custom-scrollbar"
           style={{ background: "#0f1520" }}
         >
           {children}

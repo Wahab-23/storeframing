@@ -14,7 +14,7 @@ export type AdminContext = {
 
 export async function getAdminContext(
     request: NextRequest,
-    permissionSlug?: string
+    permissionSlug?: string | string[]
 ): Promise<AdminContext> {
     const user = await getCurrentUser(request);
 

@@ -9,6 +9,10 @@
   - `[x]` Create `GET/POST /api/admin/attributes`
   - `[x]` Create `GET/POST /api/admin/content/media`
 - `[x]` Platform Products, Seller Listings, Inventory and Buy Box
+  - `[x]` Create `GET /api/admin/products` and `POST /api/admin/products`
+  - `[x]` Create `GET/PATCH/DELETE /api/admin/products/[id]`
+  - `[x]` Create `/admin/catalogue/products/new` (Add Platform Product with BlockNote Black Mode)
+  - `[x]` Create `/admin/catalogue/products/[id]/edit` (Full Product Edit with BlockNote Black Mode)
   - `[x]` Create `GET /api/admin/listings`
   - `[x]` Create `GET /api/admin/buy-box`
   - `[x]` Create `GET/POST /api/admin/inventory`
@@ -17,14 +21,15 @@
   - `[x]` Create `GET/POST /api/admin/sellers/verification`
   - `[x]` Create `GET /api/admin/sellers/performance`
   - `[x]` Create `GET /api/admin/sellers/staff`
-- `[ ]` Customers, reviews and support
-  - `[ ]` Create `GET /api/admin/customers`
-  - `[ ]` Create `GET/DELETE /api/admin/customers/reviews`
+- `[x]` Customers, reviews and support
+  - `[x]` Create `GET /api/admin/customers` and `/admin/customers` page
+  - `[x]` Create `GET/DELETE /api/admin/customers/reviews` and `/admin/customers/reviews` page
   - `[ ]` Create `GET /api/admin/customers/support-history`
   - `[ ]` Create `GET /api/admin/support/conversations`
   - `[ ]` Create `GET/PATCH /api/admin/support/tickets`
   - `[ ]` Create `GET/PATCH /api/admin/support/disputes`
 - `[ ]` Orders, payments, shipments, returns and refunds
+  - `[x]` Create `GET /api/admin/orders` and `/admin/orders` page
   - `[ ]` Create `GET /api/admin/orders/seller-orders`
   - `[ ]` Create `GET /api/admin/orders/payments`
   - `[ ]` Create `GET /api/admin/orders/shipments`
@@ -47,8 +52,11 @@
   - `[ ]` Create `GET/POST /api/admin/content/faqs`
   - `[ ]` Create `GET/POST /api/admin/content/navigation`
   - `[ ]` Create `GET/POST /api/admin/content/seo`
-- `[ ]` Reports, exports, notifications, settings, integrations and audit-log UI
+- `[x]` Reports, exports, notifications, settings, integrations and audit-log UI
   - `[ ]` Create `GET /api/admin/reports/exports`
+  - `[x]` Create `GET /api/admin/users` and `/admin/administration/users` page
+  - `[x]` Create `GET /api/admin/audit-logs` and `/admin/administration/audit-logs` page
+  - `[x]` Create `GET/PATCH /api/admin/settings` and `/admin/administration/settings` page
   - `[ ]` Create `GET/POST /api/admin/roles`
   - `[ ]` Create `GET /api/admin/permissions`
   - `[ ]` Create `GET/POST /api/admin/notifications`

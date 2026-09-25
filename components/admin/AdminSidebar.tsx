@@ -152,16 +152,6 @@ export default function AdminSidebar() {
             Admin Console
           </p>
         </div>
-        {/* Pulse indicator */}
-        <div className="ml-auto flex items-center gap-1.5">
-          <span
-            className="w-1.5 h-1.5 rounded-full animate-pulse"
-            style={{ background: "#22c55e" }}
-          />
-          <span className="text-xs" style={{ color: "#22c55e" }}>
-            Live
-          </span>
-        </div>
       </div>
 
       {/* Nav */}
@@ -182,12 +172,12 @@ export default function AdminSidebar() {
                     style={
                       isActive
                         ? {
-                            background: "rgba(252,192,20,0.12)",
-                            color: "#FCC014",
-                          }
+                          background: "rgba(252,192,20,0.12)",
+                          color: "#FCC014",
+                        }
                         : {
-                            color: "rgba(255,255,255,0.45)",
-                          }
+                          color: "rgba(255,255,255,0.45)",
+                        }
                     }
                     onMouseEnter={(e) => {
                       if (!isActive) {
@@ -316,8 +306,8 @@ export default function AdminSidebar() {
               ((e.currentTarget as HTMLElement).style.color = "#ef4444")
             }
             onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLElement).style.color =
-                "rgba(255,255,255,0.35)")
+            ((e.currentTarget as HTMLElement).style.color =
+              "rgba(255,255,255,0.35)")
             }
             title="Logout"
           >

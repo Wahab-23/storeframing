@@ -40,7 +40,11 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 });
 
 export const POST = withApiHandler(async (request: NextRequest) => {
-    await requirePermission(request, "catalogue:categories:write");
+    await requirePermission(request, [
+        "admin:categories:write",
+        "admin:products:write",
+        "catalogue:categories:write",
+    ]);
 
     const body = await request.json().catch(() => ({}));
     const parsed = adminCategoryCreateSchema.safeParse(body);

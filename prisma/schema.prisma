@@ -785,6 +785,10 @@ model Brand {
   slug        String  @unique
   description String? @db.Text
   logoUrl     String?
+  bannerUrl   String?
+  websiteUrl  String?
+  isFeatured  Boolean @default(false)
+  sortOrder   Int     @default(0)
   isActive    Boolean @default(true)
 
   createdAt DateTime @default(now())
@@ -794,6 +798,7 @@ model Brand {
   products Product[]
 
   @@index([isActive])
+  @@index([isFeatured])
 }
 
 // ============================================================
@@ -808,6 +813,12 @@ model Category {
   slug        String  @unique
   description String? @db.Text
   imageUrl    String?
+  bannerUrl   String?
+  iconUrl     String?
+
+  displayMode   String? @default("BOTH")
+  includeInMenu Boolean @default(true)
+  customLayout  String?
 
   isActive  Boolean @default(true)
   sortOrder Int     @default(0)
@@ -820,6 +831,7 @@ model Category {
 
   seo      SeoMetadata?
   products ProductCategory[]
+  blocks   CategoryBlock[]
 
   attributes CategoryAttribute[]
 
@@ -1030,6 +1042,7 @@ model ProductCategory {
   id         String @id @default(cuid())
   productId  String
   categoryId String
+  sortOrder  Int    @default(0)
 
   product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -2163,6 +2176,35 @@ model CmsPage {
   seo SeoMetadata?
 
   @@index([status])
+}
+
+model CmsBlock {
+  id         String   @id @default(cuid())
+  title      String
+  identifier String   @unique
+  content    String?  @db.Text
+  position   String   @default("TOP") // "TOP", "BOTTOM", "SIDEBAR"
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  categories CategoryBlock[]
+
+  @@index([isActive])
+}
+
+model CategoryBlock {
+  id         String   @id @default(cuid())
+  categoryId String
+  blockId    String
+  sortOrder  Int      @default(0)
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  block    CmsBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, blockId])
+  @@index([categoryId])
+  @@index([blockId])
 }
 
 // ============================================================

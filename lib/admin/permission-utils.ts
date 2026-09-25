@@ -12,6 +12,7 @@ type PermissionContextResult = {
 function hasPermissionMatch(permissions: string[], permissionSlug: string) {
     return permissions.some(
         (permission) =>
+            permission === "*" ||
             permission === permissionSlug ||
             (permission.endsWith(":*") && permissionSlug.startsWith(permission.slice(0, -1)))
     );
@@ -19,7 +20,7 @@ function hasPermissionMatch(permissions: string[], permissionSlug: string) {
 
 export function resolveAdminPermissionContext(
     input: PermissionContextInput,
-    permissionSlug: string = "admin:access"
+    permissionSlug: string | string[] = "admin:access"
 ): PermissionContextResult {
     const roleSlugs = input.roleAssignments.map((assignment) => assignment.role.slug);
     const hasAdminRole = roleSlugs.some((slug) =>
@@ -30,7 +31,17 @@ export function resolveAdminPermissionContext(
         return { allowed: false, reason: "Admin access required.", roleSlugs };
     }
 
-    if (permissionSlug === "admin:access" || hasPermissionMatch(input.permissions, permissionSlug)) {
+    // Super Admin has unrestricted access to all features
+    if (roleSlugs.includes("super-admin")) {
+        return { allowed: true, roleSlugs };
+    }
+
+    const requiredSlugs = Array.isArray(permissionSlug) ? permissionSlug : [permissionSlug];
+
+    if (
+        requiredSlugs.includes("admin:access") ||
+        requiredSlugs.some((slug) => hasPermissionMatch(input.permissions, slug))
+    ) {
         return { allowed: true, roleSlugs };
     }
 

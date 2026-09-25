@@ -25,13 +25,20 @@ const categoryAttributeSchema = z.object({
 const categoryBaseSchema = z.object({
     name: z.string().trim().min(1).max(255),
     slug: z.string().trim().min(1).max(255).optional(),
-    description: z.string().trim().max(10000).nullable().optional(),
+    description: z.string().trim().max(50000).nullable().optional(),
     imageUrl: z.string().trim().max(2048).nullable().optional(),
-    parentId: z.string().cuid2().nullable().optional(),
+    bannerUrl: z.string().trim().max(2048).nullable().optional(),
+    iconUrl: z.string().trim().max(2048).nullable().optional(),
+    displayMode: z.string().trim().max(50).nullable().optional(),
+    includeInMenu: z.boolean().optional(),
+    customLayout: z.string().trim().max(100).nullable().optional(),
+    parentId: z.string().nullable().optional().transform((val) => (val === "" ? null : val)),
     isActive: z.boolean().optional(),
     sortOrder: z.number().int().optional(),
     seo: seoSchema.nullable().optional(),
     attributes: z.array(categoryAttributeSchema).optional(),
+    blockIds: z.array(z.string()).optional(),
+    productIds: z.array(z.string()).optional(),
 });
 
 export const adminCategoryListQuerySchema = z.object({

@@ -236,7 +236,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <main className="mx-auto max-w-screen-2xl space-y-6">
+    <main className="mx-auto max-w-screen-2xl space-y-6 pt-6">
       {/* Dashboard Hero */}
       <section className="relative overflow-hidden rounded-3xl border border-sunflower-100/20 bg-matt-black-100 px-5 py-6 shadow-2xl shadow-matt-black-100/20 sm:px-7 sm:py-8">
         {/* Decorative background */}
@@ -286,7 +286,7 @@ export default function AdminDashboard() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Link href="/admin/approval">
+              <Link href="/admin/sellers/approvals">
                 <button className="inline-flex cursor-pointer min-h-11 items-center justify-center rounded-xl bg-sunflower-100 px-5 text-sm font-bold text-matt-black-100 transition hover:-translate-y-0.5 hover:bg-sunflower-200 hover:shadow-lg hover:shadow-sunflower-100/20 focus:outline-none focus:ring-2 focus:ring-sunflower-100/50">
                   Review Applications
                   <ChevronRight className="ml-2 h-4 w-4" />
@@ -544,9 +544,11 @@ export default function AdminDashboard() {
               </p>
             </div>
 
-            <button className="rounded-xl cursor-pointer bg-matt-black-200 px-4 py-2.5 text-xs font-bold text-white-chalk-100 transition hover:bg-matt-black-300/50">
-              Review All
-            </button>
+            <Link href="/admin/sellers/approvals">
+              <button className="rounded-xl cursor-pointer bg-matt-black-200 px-4 py-2.5 text-xs font-bold text-white-chalk-100 transition hover:bg-matt-black-300/50">
+                Review All
+              </button>
+            </Link>
           </div>
 
           <div className="overflow-x-auto">
@@ -611,9 +613,17 @@ export default function AdminDashboard() {
                       </td>
 
                       <td className="px-5 py-4 text-right sm:px-6">
-                        <button className="cursor-pointer text-xs font-bold text-munsell-blue-100 transition hover:text-munsell-blue-200">
-                          Review
-                        </button>
+                        <Link
+                          href={
+                            row.type === "Seller"
+                              ? "/admin/sellers/approvals"
+                              : "/admin/catalogue/product-submissions"
+                          }
+                        >
+                          <button className="cursor-pointer text-xs font-bold text-munsell-blue-100 transition hover:text-munsell-blue-200">
+                            Review
+                          </button>
+                        </Link>
                       </td>
                     </tr>
                   ))

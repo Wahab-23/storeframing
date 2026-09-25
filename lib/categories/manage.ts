@@ -19,8 +19,17 @@ type CategoryTreeNode = {
     slug: string;
     description: string | null;
     imageUrl: string | null;
+    bannerUrl?: string | null;
+    iconUrl?: string | null;
+    displayMode?: string | null;
+    includeInMenu?: boolean;
+    customLayout?: string | null;
     isActive: boolean;
     sortOrder: number;
+    _count?: {
+        children: number;
+        products: number;
+    };
     seo?: {
         metaTitle: string | null;
         metaDescription: string | null;
@@ -39,8 +48,19 @@ const categoryTreeSelect = {
     slug: true,
     description: true,
     imageUrl: true,
+    bannerUrl: true,
+    iconUrl: true,
+    displayMode: true,
+    includeInMenu: true,
+    customLayout: true,
     isActive: true,
     sortOrder: true,
+    _count: {
+        select: {
+            children: true,
+            products: true,
+        },
+    },
     seo: {
         select: {
             metaTitle: true,
@@ -60,6 +80,11 @@ const categoryDetailSelect = {
     slug: true,
     description: true,
     imageUrl: true,
+    bannerUrl: true,
+    iconUrl: true,
+    displayMode: true,
+    includeInMenu: true,
+    customLayout: true,
     isActive: true,
     sortOrder: true,
     createdAt: true,
@@ -87,9 +112,38 @@ const categoryDetailSelect = {
             robots: true,
         },
     },
+    blocks: {
+        orderBy: {
+            sortOrder: "asc" as const,
+        },
+        include: {
+            block: true,
+        },
+    },
+    products: {
+        orderBy: {
+            sortOrder: "asc" as const,
+        },
+        include: {
+            product: {
+                select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                    status: true,
+                    images: {
+                        take: 1,
+                        select: {
+                            url: true,
+                        },
+                    },
+                },
+            },
+        },
+    },
     attributes: {
         orderBy: {
-            sortOrder: "asc",
+            sortOrder: "asc" as const,
         },
         select: {
             id: true,
@@ -112,24 +166,7 @@ const categoryDetailSelect = {
 } as const;
 
 function buildTreeNode(
-    category: {
-        id: string;
-        parentId: string | null;
-        name: string;
-        slug: string;
-        description: string | null;
-        imageUrl: string | null;
-        isActive: boolean;
-        sortOrder: number;
-        seo: {
-            metaTitle: string | null;
-            metaDescription: string | null;
-            canonicalUrl: string | null;
-            ogImageUrl: string | null;
-            twitterImageUrl: string | null;
-            robots: string | null;
-        } | null;
-    },
+    category: any,
     children: CategoryTreeNode[]
 ): CategoryTreeNode {
     return {
@@ -139,8 +176,14 @@ function buildTreeNode(
         slug: category.slug,
         description: category.description,
         imageUrl: category.imageUrl,
+        bannerUrl: category.bannerUrl,
+        iconUrl: category.iconUrl,
+        displayMode: category.displayMode,
+        includeInMenu: category.includeInMenu,
+        customLayout: category.customLayout,
         isActive: category.isActive,
         sortOrder: category.sortOrder,
+        _count: category._count,
         seo: category.seo,
         children,
     };
@@ -298,6 +341,23 @@ async function getUniqueCategorySlug(
         candidate = `${baseSlug}-${suffix}`;
         suffix += 1;
     }
+}
+
+function hasSeoValues(seo?: CategorySeoInput | null): boolean {
+    if (!seo) return false;
+    return Boolean(
+        seo.metaTitle?.trim() ||
+        seo.metaDescription?.trim() ||
+        seo.metaKeywords?.trim() ||
+        seo.canonicalUrl?.trim() ||
+        seo.ogTitle?.trim() ||
+        seo.ogDescription?.trim() ||
+        seo.ogImageUrl?.trim() ||
+        seo.twitterTitle?.trim() ||
+        seo.twitterDescription?.trim() ||
+        seo.twitterImageUrl?.trim() ||
+        seo.robots?.trim()
+    );
 }
 
 function toSeoCreateData(seo: CategorySeoInput) {
@@ -635,13 +695,18 @@ export async function createCategory(
                 slug,
                 description: input.description ?? null,
                 imageUrl: input.imageUrl ?? null,
+                bannerUrl: input.bannerUrl ?? null,
+                iconUrl: input.iconUrl ?? null,
+                displayMode: input.displayMode ?? "BOTH",
+                includeInMenu: input.includeInMenu ?? true,
+                customLayout: input.customLayout ?? null,
                 parentId: input.parentId ?? null,
                 isActive: input.isActive ?? true,
                 sortOrder: input.sortOrder ?? 0,
-                ...(input.seo
+                ...(hasSeoValues(input.seo)
                     ? {
                           seo: {
-                              create: toSeoCreateData(input.seo),
+                              create: toSeoCreateData(input.seo!),
                           },
                       }
                     : {}),
@@ -655,6 +720,50 @@ export async function createCategory(
             await tx.categoryAttribute.createMany({
                 data: toAttributeData(input.attributes, category.id),
             });
+        }
+
+        if (input.blockIds?.length) {
+            const validBlocks = await tx.cmsBlock.findMany({
+                where: { id: { in: input.blockIds } },
+                select: { id: true },
+            });
+            const validBlockIds = new Set(validBlocks.map((b) => b.id));
+
+            const toCreate = input.blockIds
+                .filter((bId) => validBlockIds.has(bId))
+                .map((blockId, idx) => ({
+                    categoryId: category.id,
+                    blockId,
+                    sortOrder: idx,
+                }));
+
+            if (toCreate.length > 0) {
+                await tx.categoryBlock.createMany({
+                    data: toCreate,
+                });
+            }
+        }
+
+        if (input.productIds?.length) {
+            const validProducts = await tx.product.findMany({
+                where: { id: { in: input.productIds } },
+                select: { id: true },
+            });
+            const validProductIds = new Set(validProducts.map((p) => p.id));
+
+            const toCreate = input.productIds
+                .filter((pId) => validProductIds.has(pId))
+                .map((productId, idx) => ({
+                    categoryId: category.id,
+                    productId,
+                    sortOrder: idx,
+                }));
+
+            if (toCreate.length > 0) {
+                await tx.productCategory.createMany({
+                    data: toCreate,
+                });
+            }
         }
 
         return getCategoryDetail(tx, category.id);
@@ -697,26 +806,15 @@ export async function updateCategory(
                 ? { description: input.description }
                 : {}),
             ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
+            ...(input.bannerUrl !== undefined ? { bannerUrl: input.bannerUrl } : {}),
+            ...(input.iconUrl !== undefined ? { iconUrl: input.iconUrl } : {}),
+            ...(input.displayMode !== undefined ? { displayMode: input.displayMode } : {}),
+            ...(input.includeInMenu !== undefined ? { includeInMenu: input.includeInMenu } : {}),
+            ...(input.customLayout !== undefined ? { customLayout: input.customLayout } : {}),
             ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
             ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
             ...(input.sortOrder !== undefined
                 ? { sortOrder: input.sortOrder }
-                : {}),
-            ...(input.seo !== undefined
-                ? input.seo === null
-                    ? {
-                          seo: {
-                              delete: true,
-                          },
-                      }
-                    : {
-                          seo: {
-                              upsert: {
-                                  create: toSeoCreateData(input.seo),
-                                  update: toSeoCreateData(input.seo),
-                              },
-                          },
-                      }
                 : {}),
         };
 
@@ -726,6 +824,33 @@ export async function updateCategory(
             },
             data: updateData,
         });
+
+        // Safe SEO metadata management
+        if (input.seo !== undefined) {
+            const existingSeo = await tx.seoMetadata.findUnique({
+                where: { categoryId },
+            });
+
+            if (hasSeoValues(input.seo)) {
+                if (existingSeo) {
+                    await tx.seoMetadata.update({
+                        where: { categoryId },
+                        data: toSeoCreateData(input.seo!),
+                    });
+                } else {
+                    await tx.seoMetadata.create({
+                        data: {
+                            ...toSeoCreateData(input.seo!),
+                            categoryId,
+                        },
+                    });
+                }
+            } else if (existingSeo) {
+                await tx.seoMetadata.delete({
+                    where: { categoryId },
+                });
+            }
+        }
 
         if (input.attributes !== undefined) {
             await tx.categoryAttribute.deleteMany({
@@ -738,6 +863,66 @@ export async function updateCategory(
                 await tx.categoryAttribute.createMany({
                     data: toAttributeData(input.attributes, categoryId),
                 });
+            }
+        }
+
+        if (input.blockIds !== undefined) {
+            await tx.categoryBlock.deleteMany({
+                where: {
+                    categoryId,
+                },
+            });
+
+            if (input.blockIds.length > 0) {
+                const validBlocks = await tx.cmsBlock.findMany({
+                    where: { id: { in: input.blockIds } },
+                    select: { id: true },
+                });
+                const validBlockIds = new Set(validBlocks.map((b) => b.id));
+
+                const toCreate = input.blockIds
+                    .filter((bId) => validBlockIds.has(bId))
+                    .map((blockId, idx) => ({
+                        categoryId,
+                        blockId,
+                        sortOrder: idx,
+                    }));
+
+                if (toCreate.length > 0) {
+                    await tx.categoryBlock.createMany({
+                        data: toCreate,
+                    });
+                }
+            }
+        }
+
+        if (input.productIds !== undefined) {
+            await tx.productCategory.deleteMany({
+                where: {
+                    categoryId,
+                },
+            });
+
+            if (input.productIds.length > 0) {
+                const validProducts = await tx.product.findMany({
+                    where: { id: { in: input.productIds } },
+                    select: { id: true },
+                });
+                const validProductIds = new Set(validProducts.map((p) => p.id));
+
+                const toCreate = input.productIds
+                    .filter((pId) => validProductIds.has(pId))
+                    .map((productId, idx) => ({
+                        categoryId,
+                        productId,
+                        sortOrder: idx,
+                    }));
+
+                if (toCreate.length > 0) {
+                    await tx.productCategory.createMany({
+                        data: toCreate,
+                    });
+                }
             }
         }
 

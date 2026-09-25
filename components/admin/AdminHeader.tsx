@@ -6,7 +6,7 @@ import Image from "next/image";
 export default function AdminHeader() {
   return (
     <header
-      className="h-14 flex items-center justify-between px-6 border-b shrink-0"
+      className="h-16 flex items-center justify-between px-6 border-b shrink-0"
       style={{
         background: "#0d1117",
         borderColor: "rgba(252,192,20,0.12)",
@@ -57,19 +57,6 @@ export default function AdminHeader() {
 
       {/* Right side */}
       <div className="flex items-center gap-3 ml-4">
-        {/* System status chip */}
-        <div
-          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
-          style={{
-            background: "rgba(34,197,94,0.1)",
-            border: "1px solid rgba(34,197,94,0.2)",
-            color: "#22c55e",
-          }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-          All Systems Operational
-        </div>
-
         {/* Notification bell */}
         <button
           className="relative p-2 rounded-lg transition-all cursor-pointer"

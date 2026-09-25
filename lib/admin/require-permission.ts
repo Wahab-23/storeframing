@@ -4,7 +4,7 @@ import { getAdminContext } from "./get-admin-context";
 
 export async function requirePermission(
     request: NextRequest,
-    permissionSlug: string
+    permissionSlug: string | string[]
 ) {
     const { user } = await getAdminContext(request, permissionSlug);
     return user;

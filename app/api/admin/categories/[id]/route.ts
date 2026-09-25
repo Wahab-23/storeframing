@@ -23,7 +23,11 @@ export const GET = withApiHandler(async (request: NextRequest, context: RouteCon
 });
 
 export const PATCH = withApiHandler(async (request: NextRequest, context: RouteContext) => {
-    await requirePermission(request, "catalogue:categories:write");
+    await requirePermission(request, [
+        "admin:categories:write",
+        "admin:products:write",
+        "catalogue:categories:write",
+    ]);
     const { id } = await context.params;
     const body = await request.json().catch(() => ({}));
     const parsed = adminCategoryUpdateSchema.safeParse(body);
@@ -44,7 +48,11 @@ export const PATCH = withApiHandler(async (request: NextRequest, context: RouteC
 });
 
 export const DELETE = withApiHandler(async (request: NextRequest, context: RouteContext) => {
-    await requirePermission(request, "catalogue:categories:write");
+    await requirePermission(request, [
+        "admin:categories:write",
+        "admin:products:write",
+        "catalogue:categories:write",
+    ]);
     const { id } = await context.params;
 
     return deleteCategorySafely(id);

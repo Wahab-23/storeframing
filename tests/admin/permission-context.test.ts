@@ -82,3 +82,35 @@ test("rejects access when the user has no admin-type role", () => {
     assert.equal(result.allowed, false);
     assert.equal(result.reason, "Admin access required.");
 });
+
+test("always allows access for super-admin role regardless of explicit permission slugs", () => {
+    const result = resolveAdminPermissionContext({
+        roleAssignments: [
+            {
+                role: {
+                    slug: "super-admin",
+                },
+            },
+        ],
+        permissions: [],
+    }, "catalogue:categories:write");
+
+    assert.equal(result.allowed, true);
+    assert.deepEqual(result.roleSlugs, ["super-admin"]);
+});
+
+test("allows access when user matches any permission in an array of required slugs", () => {
+    const result = resolveAdminPermissionContext({
+        roleAssignments: [
+            {
+                role: {
+                    slug: "admin",
+                },
+            },
+        ],
+        permissions: ["admin:products:write"],
+    }, ["admin:categories:write", "admin:products:write", "catalogue:categories:write"]);
+
+    assert.equal(result.allowed, true);
+    assert.deepEqual(result.roleSlugs, ["admin"]);
+});
