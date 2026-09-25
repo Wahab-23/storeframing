@@ -44,8 +44,12 @@ export const POST = withApiHandler(async (request: NextRequest) => {
         variants = [],
     } = body;
 
-    if (!name) {
+    if (typeof name !== "string" || !name.trim()) {
         throw new AppError(400, "Product name is required.");
+    }
+
+    if (ownershipType === "SELLER_EXCLUSIVE" && !ownerSellerId) {
+        throw new AppError(400, "An exclusive product must have an owner seller.");
     }
 
     const finalSlug = (slug || name)

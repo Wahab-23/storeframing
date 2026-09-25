@@ -3,18 +3,13 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   History,
-  Shield,
-  Clock,
   Eye,
   Activity,
-  Terminal,
-  Server,
-  User,
+  Search,
 } from "lucide-react";
 import {
   AdminPageHeader,
   AdminStatCard,
-  AdminBadge,
   AdminFilterBar,
   AdminTable,
   AdminPagination,
@@ -27,8 +22,8 @@ interface AuditLogItem {
   action: string;
   entityType: string;
   entityId: string;
-  oldData?: any;
-  newData?: any;
+  oldData?: unknown;
+  newData?: unknown;
   ipAddress?: string | null;
   userAgent?: string | null;
   createdAt: string;
@@ -45,6 +40,10 @@ export default function AdminAuditLogsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("");
+  const [entityTypeFilter, setEntityTypeFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [requestError, setRequestError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -59,42 +58,43 @@ export default function AdminAuditLogsPage() {
       params.set("page", String(page));
       params.set("limit", "15");
       if (actionFilter) params.set("action", actionFilter);
+      if (search.trim()) params.set("search", search.trim());
+      if (entityTypeFilter) params.set("entityType", entityTypeFilter);
+      if (fromDate) params.set("from", new Date(`${fromDate}T00:00:00.000`).toISOString());
+      if (toDate) params.set("to", new Date(`${toDate}T23:59:59.999`).toISOString());
 
       const res = await fetch(`/api/admin/audit-logs?${params.toString()}`);
       const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Unable to load audit events.");
 
       if (data.data?.logs) {
+        setRequestError(null);
         setLogs(data.data.logs);
         setTotalPages(data.data.pagination?.totalPages || 1);
         setTotalCount(data.data.pagination?.total || 0);
       } else if (Array.isArray(data.data)) {
+        setRequestError(null);
         setLogs(data.data);
         setTotalCount(data.data.length);
       }
     } catch (err) {
       console.error("Error fetching audit logs:", err);
+      setRequestError(err instanceof Error ? err.message : "Unable to load audit events.");
     } finally {
       setLoading(false);
     }
-  }, [page, actionFilter]);
+  }, [page, actionFilter, search, entityTypeFilter, fromDate, toDate]);
 
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
-
-  const filtered = logs.filter((log) => {
-    const q = search.toLowerCase();
-    const userText = log.user?.email.toLowerCase() || "";
-    const entity = log.entityType.toLowerCase();
-    const id = log.entityId.toLowerCase();
-    return userText.includes(q) || entity.includes(q) || id.includes(q);
-  });
+    const timer = window.setTimeout(fetchLogs, search.trim() ? 300 : 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchLogs, search]);
 
   return (
     <div className="space-y-6">
       <AdminPageHeader
         title="Security & System Audit Logs"
-        description="Immutable compliance journal recording administrative actions, permission mutations, and operational activities."
+        description="Review recorded administrative changes. Search and filters apply across all matching events."
         badge={`${totalCount} Total Entries`}
         breadcrumbs={[
           { label: "Admin", href: "/admin/dashboard" },
@@ -105,33 +105,37 @@ export default function AdminAuditLogsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <AdminStatCard
-          label="Total Events Logged"
+          label="Matching Events"
           value={totalCount}
-          subtext="Captured in immutable journal"
+          subtext="Matches the current filters"
           icon={History}
           variant="gold"
         />
         <AdminStatCard
-          label="Compliance Integrity"
-          value="100%"
-          subtext="Cryptographically stamped"
-          icon={Shield}
-          variant="green"
-        />
-        <AdminStatCard
-          label="Security Auditing"
-          value="Real-Time"
-          subtext="Admin & merchant activity tracking"
+          label="Audit Coverage"
+          value="Partial"
+          subtext="Some admin actions do not yet write events"
           icon={Activity}
           variant="blue"
+        />
+        <AdminStatCard
+          label="Search Scope"
+          value="All pages"
+          subtext="Search is applied before pagination"
+          icon={Search}
+          variant="green"
         />
       </div>
 
       <AdminFilterBar
         search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Filter by actor email, entity, or ID..."
+        onSearchChange={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
+        searchPlaceholder="Search actor name, email, entity, or ID..."
         statusFilter={actionFilter}
+        statusPlaceholder="All actions"
         onStatusChange={(v) => {
           setActionFilter(v);
           setPage(1);
@@ -146,9 +150,51 @@ export default function AdminAuditLogsPage() {
           { label: "RESTORE", value: "RESTORE" },
           { label: "LOGIN", value: "LOGIN" },
         ]}
+        extraFilters={
+          <>
+            <select
+              value={entityTypeFilter}
+              onChange={(event) => {
+                setEntityTypeFilter(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter by entity type"
+              className="bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3 py-2 outline-none focus:border-sunflower-100/50 cursor-pointer"
+            >
+              <option value="">All entities</option>
+              {["PRODUCT", "SELLER", "SELLER_LISTING", "ORDER", "USER", "CATEGORY", "BRAND", "COUPON", "RETURN", "REFUND"].map((entityType) => (
+                <option key={entityType} value={entityType}>{entityType.replaceAll("_", " ")}</option>
+              ))}
+            </select>
+            <label className="sr-only" htmlFor="audit-from-date">From date</label>
+            <input
+              id="audit-from-date"
+              type="date"
+              value={fromDate}
+              onChange={(event) => { setFromDate(event.target.value); setPage(1); }}
+              aria-label="From date"
+              className="bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-2 py-2 outline-none focus:border-sunflower-100/50"
+            />
+            <label className="sr-only" htmlFor="audit-to-date">To date</label>
+            <input
+              id="audit-to-date"
+              type="date"
+              value={toDate}
+              onChange={(event) => { setToDate(event.target.value); setPage(1); }}
+              aria-label="To date"
+              className="bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-2 py-2 outline-none focus:border-sunflower-100/50"
+            />
+          </>
+        }
         onRefresh={fetchLogs}
         isRefreshing={loading}
       />
+
+      {requestError && (
+        <div role="alert" className="p-4 rounded-xl bg-cadmium-red-100/15 border border-cadmium-red-100/30 text-cadmium-red-200 text-xs">
+          {requestError}
+        </div>
+      )}
 
       <AdminTable
         headers={[
@@ -160,11 +206,11 @@ export default function AdminAuditLogsPage() {
           "Diff Inspection",
         ]}
         loading={loading}
-        isEmpty={filtered.length === 0}
+        isEmpty={logs.length === 0}
         emptyMessage="No audit logs recorded for this criteria."
         colSpan={6}
       >
-        {filtered.map((log) => {
+        {logs.map((log) => {
           const actor = log.user
             ? `${log.user.firstName || ""} ${log.user.lastName || ""}`.trim() || log.user.email
             : "System Background";
@@ -205,7 +251,7 @@ export default function AdminAuditLogsPage() {
               </td>
 
               <td className="px-5 py-3.5 text-white-chalk-100/50 font-mono text-xs">
-                {log.ipAddress || "127.0.0.1"}
+                {log.ipAddress || "Not recorded"}
               </td>
 
               <td className="px-5 py-3.5 text-right">
@@ -289,7 +335,7 @@ export default function AdminAuditLogsPage() {
                 </h6>
                 <div className="bg-matt-black-200/60 p-3 rounded-xl border border-white-chalk-100/10 font-mono text-[11px] text-cadmium-red-200/80 max-h-48 overflow-y-auto custom-scrollbar">
                   <pre className="whitespace-pre-wrap">
-                    {JSON.stringify(selectedLog.oldData, null, 2) || "None"}
+                    {JSON.stringify(selectedLog.oldData ?? null, null, 2)}
                   </pre>
                 </div>
               </div>
@@ -300,7 +346,7 @@ export default function AdminAuditLogsPage() {
                 </h6>
                 <div className="bg-matt-black-200/60 p-3 rounded-xl border border-white-chalk-100/10 font-mono text-[11px] text-pablano-200/80 max-h-48 overflow-y-auto custom-scrollbar">
                   <pre className="whitespace-pre-wrap">
-                    {JSON.stringify(selectedLog.newData, null, 2) || "None"}
+                    {JSON.stringify(selectedLog.newData ?? null, null, 2)}
                   </pre>
                 </div>
               </div>

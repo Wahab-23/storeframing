@@ -68,18 +68,16 @@ interface VariantItem {
   id: string;
   name: string;
   sku: string;
-  price: string;
-  stock: string;
 }
 
 const TABS = [
-  { id: "general", label: "General Settings", icon: Package },
-  { id: "content", label: "Content & Descriptions", icon: FileText },
-  { id: "images", label: "Images & Media", icon: ImageIcon },
-  { id: "pricing", label: "Pricing & Inventory", icon: DollarSign },
-  { id: "configurations", label: "Configurations / Variants", icon: Boxes },
-  { id: "seo", label: "Search Engine Optimization", icon: Globe },
-  { id: "marketplace", label: "Marketplace & Offers", icon: Store },
+  { id: "general", label: "Basics", description: "Name, brand, type, and categories", icon: Package },
+  { id: "content", label: "Description", description: "Product copy and details", icon: FileText },
+  { id: "images", label: "Photos & media", description: "Images and alt text", icon: ImageIcon },
+  { id: "pricing", label: "Pricing & stock", description: "Seller offer setup", icon: DollarSign },
+  { id: "configurations", label: "Variants", description: "Options and variant SKUs", icon: Boxes },
+  { id: "seo", label: "Search preview", description: "Search title and metadata", icon: Globe },
+  { id: "marketplace", label: "Seller access", description: "Ownership and visibility", icon: Store },
 ];
 
 export default function NewProductPage() {
@@ -119,14 +117,7 @@ export default function NewProductPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Tab 4: Pricing & Inventory
-  const [price, setPrice] = useState("");
-  const [compareAtPrice, setCompareAtPrice] = useState("");
-  const [costPrice, setCostPrice] = useState("");
-  const [stockQuantity, setStockQuantity] = useState("100");
-  const [stockStatus, setStockStatus] = useState("IN_STOCK");
-
-  // Tab 5: Configurations / Variants
+  // Variants
   const [variantOptionName, setVariantOptionName] = useState("Size");
   const [variantValuesInput, setVariantValuesInput] = useState("Small, Medium, Large");
   const [variants, setVariants] = useState<VariantItem[]>([]);
@@ -256,8 +247,6 @@ export default function NewProductPage() {
       id: Math.random().toString(36).substring(2, 9),
       name: `${variantOptionName}: ${val}`,
       sku: `${baseSku}-${val.toUpperCase().replace(/[^A-Z0-9]/g, "")}`,
-      price: price || "0",
-      stock: stockQuantity || "50",
     }));
 
     setVariants(generated);
@@ -265,6 +254,16 @@ export default function NewProductPage() {
 
   const handleSubmit = async (e?: React.FormEvent, stayOnPage = false) => {
     if (e) e.preventDefault();
+    if (!name.trim()) {
+      setActiveTab("general");
+      setErrorMsg("Add a product name before saving.");
+      return;
+    }
+    if (ownershipType === "SELLER_EXCLUSIVE" && !ownerSellerId) {
+      setActiveTab("marketplace");
+      setErrorMsg("Choose the seller who owns this exclusive product before saving.");
+      return;
+    }
     setSaving(true);
     setErrorMsg(null);
 
@@ -418,7 +417,7 @@ export default function NewProductPage() {
       {/* Main Studio Grid: Left Tabs Sidebar + Right Active Content */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         {/* Left Vertical Tabs (Sticky) */}
-        <div className="lg:col-span-1 bg-matt-black-100 border border-white-chalk-100/10 rounded-2xl p-2.5 space-y-1 lg:sticky lg:top-20 shadow-xl shadow-black/20">
+        <nav aria-label="Product sections" className="lg:col-span-1 bg-matt-black-100 border border-white-chalk-100/10 rounded-2xl p-2.5 space-y-1 lg:sticky lg:top-20 shadow-xl shadow-black/20">
           <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white-chalk-100/40">
             Product Settings Studio
           </div>
@@ -430,18 +429,24 @@ export default function NewProductPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-left transition cursor-pointer ${
+                aria-current={isActive ? "step" : undefined}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left transition cursor-pointer ${
                   isActive
                     ? "bg-sunflower-100/15 text-sunflower-100 border border-sunflower-100/30"
                     : "text-white-chalk-100/70 hover:text-white-chalk-100 hover:bg-white-chalk-100/5 border border-transparent"
                 }`}
               >
                 <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-sunflower-100" : "text-white-chalk-100/40"}`} />
-                <span>{tab.label}</span>
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold">{tab.label}</span>
+                  <span className={`block mt-0.5 text-[10px] font-normal ${isActive ? "text-sunflower-100/70" : "text-white-chalk-100/40"}`}>
+                    {tab.description}
+                  </span>
+                </span>
               </button>
             );
           })}
-        </div>
+        </nav>
 
         {/* Right Active Panel Content */}
         <div className="lg:col-span-3 space-y-6">
@@ -472,16 +477,18 @@ export default function NewProductPage() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Master SKU / Barcode *
+                    SKU prefix for variants (optional)
                   </label>
                   <input
                     type="text"
-                    required
-                    placeholder="e.g. SONY-WH1000XM5-BLK"
+                    placeholder="e.g. SONY-WH1000XM5"
                     value={sku}
                     onChange={(e) => setSku(e.target.value)}
                     className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
                   />
+                  <p className="mt-1 text-[10px] text-white-chalk-100/40">
+                    Used to suggest SKUs when you generate variants. The prefix itself is not stored as a product SKU.
+                  </p>
                 </div>
               </div>
 
@@ -865,81 +872,14 @@ export default function NewProductPage() {
               <div className="flex items-center gap-2 border-b border-white-chalk-100/10 pb-3">
                 <DollarSign className="w-4 h-4 text-pablano-200" />
                 <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                  Pricing, Margins & Base Inventory
+                  Pricing and inventory
                 </h3>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Standard Retail Price (Rs) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="e.g. 24999.00"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Compare-At Price (MSRP / Strikethrough)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="e.g. 29999.00"
-                    value={compareAtPrice}
-                    onChange={(e) => setCompareAtPrice(e.target.value)}
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Cost of Goods (Internal Margin)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="e.g. 18000.00"
-                    value={costPrice}
-                    onChange={(e) => setCostPrice(e.target.value)}
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Stock Quantity on Hand
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="100"
-                    value={stockQuantity}
-                    onChange={(e) => setStockQuantity(e.target.value)}
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Stock Availability Status
-                  </label>
-                  <select
-                    value={stockStatus}
-                    onChange={(e) => setStockStatus(e.target.value)}
-                    className="w-full bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-sunflower-100/50 cursor-pointer"
-                  >
-                    <option value="IN_STOCK">In Stock (Available for ordering)</option>
-                    <option value="OUT_OF_STOCK">Out of Stock (Backorder disabled)</option>
-                  </select>
-                </div>
+              <div className="rounded-xl border border-sunflower-100/20 bg-sunflower-100/5 p-4 space-y-2">
+                <p className="text-sm font-semibold text-white-chalk-100">Seller offers own the price and stock.</p>
+                <p className="text-xs leading-5 text-white-chalk-100/60">
+                  This screen creates the shared catalog product. Price, compare-at price, cost, and stock are not product fields and were not saved here. Add an offer for a seller after creating the catalog record.
+                </p>
               </div>
             </div>
           )}
@@ -1024,8 +964,6 @@ export default function NewProductPage() {
                           <tr>
                             <th className="py-2.5 px-3">Variant</th>
                             <th className="py-2.5 px-3">Child SKU</th>
-                            <th className="py-2.5 px-3">Price (Rs)</th>
-                            <th className="py-2.5 px-3">Stock Units</th>
                             <th className="py-2.5 px-3 text-right">Action</th>
                           </tr>
                         </thead>
@@ -1046,32 +984,6 @@ export default function NewProductPage() {
                                     );
                                   }}
                                   className="w-full bg-matt-black-300 border border-white-chalk-100/10 rounded px-2 py-1 text-xs text-white-chalk-100 font-mono outline-none"
-                                />
-                              </td>
-                              <td className="py-2 px-3">
-                                <input
-                                  type="number"
-                                  value={v.price}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setVariants((prev) =>
-                                      prev.map((item, i) => (i === idx ? { ...item, price: val } : item))
-                                    );
-                                  }}
-                                  className="w-24 bg-matt-black-300 border border-white-chalk-100/10 rounded px-2 py-1 text-xs text-white-chalk-100 font-mono outline-none"
-                                />
-                              </td>
-                              <td className="py-2 px-3">
-                                <input
-                                  type="number"
-                                  value={v.stock}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setVariants((prev) =>
-                                      prev.map((item, i) => (i === idx ? { ...item, stock: val } : item))
-                                    );
-                                  }}
-                                  className="w-20 bg-matt-black-300 border border-white-chalk-100/10 rounded px-2 py-1 text-xs text-white-chalk-100 font-mono outline-none"
                                 />
                               </td>
                               <td className="py-2 px-3 text-right">

@@ -11,6 +11,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
         page: request.nextUrl.searchParams.get("page") ?? undefined,
         limit: request.nextUrl.searchParams.get("limit") ?? undefined,
         action: request.nextUrl.searchParams.get("action") ?? undefined,
+        search: request.nextUrl.searchParams.get("search") ?? undefined,
         entityType: request.nextUrl.searchParams.get("entityType") ?? undefined,
         entityId: request.nextUrl.searchParams.get("entityId") ?? undefined,
         userId: request.nextUrl.searchParams.get("userId") ?? undefined,
