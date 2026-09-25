@@ -1,22 +1,11 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "../generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
+import { createPostgresAdapter } from "../lib/postgres-adapter";
 
 const DEMO_PASSWORD = "Password123!";
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL?.includes("localhost")
-        ? false
-        : { rejectUnauthorized: false },
-});
-
-// Cast needed: project uses @types/pg@8.23.1 but @prisma/adapter-pg internally
-// references @types/pg@8.20.0 — the two Pool types are structurally incompatible.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const adapter = new PrismaPg(pool as any);
+const adapter = createPostgresAdapter();
 const prisma = new PrismaClient({ adapter });
 
 async function main() {

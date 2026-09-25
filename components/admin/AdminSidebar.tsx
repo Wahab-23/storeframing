@@ -140,8 +140,9 @@ export default function AdminSidebar() {
         <Image
           src="/company-identity/Insignia.svg"
           alt="iShopping"
-          width={32}
-          height={22}
+          width={39}
+          height={26}
+          style={{ width: 32, height: "auto" }}
           className="shrink-0"
         />
         <div>
