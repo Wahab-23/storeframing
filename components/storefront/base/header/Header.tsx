@@ -57,8 +57,9 @@ export default function Header({ data }: HeaderProps) {
                             <Image
                                 src="/company-identity/Insignia.svg"
                                 alt={d.logo.alt}
-                                width={32}
-                                height={32}
+                                width={39}
+                                height={26}
+                                style={{ width: 32, height: "auto" }}
                                 className="block lg:hidden object-contain h-auto w-auto max-h-7 hover:opacity-90 transition-opacity duration-200"
                                 priority
                             />

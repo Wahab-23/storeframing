@@ -253,8 +253,9 @@ export default function AdminDashboard() {
                 <Image
                   src="/company-identity/Insignia.svg"
                   alt="iShopping"
-                  width={34}
-                  height={24}
+                  width={39}
+                  height={26}
+                  style={{ width: 34, height: "auto" }}
                   priority
                 />
               </div>
