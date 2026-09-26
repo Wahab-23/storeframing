@@ -182,13 +182,7 @@ export function ProductRevisionTimeline({
     revisions[0]?.id || null
   );
 
-  // Active view tab inside expanded card: 'diff' | 'snapshot'
-  const [activeViewMode, setActiveViewMode] = useState<Record<string, "diff" | "snapshot">>({});
 
-  // Compare mode: user can pick two revisions to compare directly
-  const [compareRevIdA, setCompareRevIdA] = useState<string>("");
-  const [compareRevIdB, setCompareRevIdB] = useState<string>("");
-  const [showCompareDialog, setShowCompareDialog] = useState(false);
 
   // Toggle card expansion
   const toggleExpand = (id: string) => {
@@ -257,22 +251,6 @@ export function ProductRevisionTimeline({
         </div>
 
         <div className="flex items-center gap-2">
-          {revisions.length >= 2 && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setCompareRevIdA(revisions[0]?.id || "");
-                setCompareRevIdB(revisions[1]?.id || "");
-                setShowCompareDialog(true);
-              }}
-              className="text-xs text-white-chalk-100/80 hover:text-sunflower-100 cursor-pointer flex items-center gap-1.5"
-            >
-              <GitCompare className="w-3.5 h-3.5 text-sunflower-100" />
-              Compare Revisions
-            </Button>
-          )}
           <span className="text-[10px] text-white-chalk-100/40 hidden sm:inline">
             Chronological audit of catalog changes
           </span>
@@ -285,8 +263,6 @@ export function ProductRevisionTimeline({
           const isExpanded = expandedRevId === rev.id;
           const prevRev = revisions[idx + 1] || null;
           const diffs = computeDiff(rev.payload, prevRev?.payload);
-          const viewMode = activeViewMode[rev.id] || "diff";
-          const snapshotData = getPayloadData(rev.payload);
 
           return (
             <div key={rev.id} className="relative pl-6 sm:pl-8 group">
@@ -377,50 +353,6 @@ export function ProductRevisionTimeline({
                 {/* Expanded Details Body */}
                 {isExpanded && (
                   <div className="border-t border-white-chalk-100/10 p-4 space-y-4 bg-matt-black-300/30 animate-in fade-in-50 duration-200">
-                    {/* View mode toggle: Changes Diff vs Snapshot Data */}
-                    <div className="flex items-center justify-between border-b border-white-chalk-100/10 pb-3">
-                      <div className="flex items-center gap-1.5 p-0.5 bg-matt-black-200/80 rounded-lg border border-white-chalk-100/10">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActiveViewMode((prev) => ({ ...prev, [rev.id]: "diff" }))
-                          }
-                          className={cn(
-                            "px-2.5 py-1 text-xs font-semibold rounded-md transition cursor-pointer flex items-center gap-1.5",
-                            viewMode === "diff"
-                              ? "bg-sunflower-100 text-matt-black-100 shadow-sm"
-                              : "text-white-chalk-100/60 hover:text-white-chalk-100"
-                          )}
-                        >
-                          <GitCompare className="w-3 h-3" />
-                          Changes Made ({diffs.length})
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActiveViewMode((prev) => ({ ...prev, [rev.id]: "snapshot" }))
-                          }
-                          className={cn(
-                            "px-2.5 py-1 text-xs font-semibold rounded-md transition cursor-pointer flex items-center gap-1.5",
-                            viewMode === "snapshot"
-                              ? "bg-sunflower-100 text-matt-black-100 shadow-sm"
-                              : "text-white-chalk-100/60 hover:text-white-chalk-100"
-                          )}
-                        >
-                          <Eye className="w-3 h-3" />
-                          Full Snapshot (v{rev.revisionNumber})
-                        </button>
-                      </div>
-
-                      <span className="text-[10px] text-white-chalk-100/40">
-                        {prevRev
-                          ? `Compared with Rev #${prevRev.revisionNumber}`
-                          : "Initial version (Origin)"}
-                      </span>
-                    </div>
-
-                    {/* VIEW 1: CHANGES DIFF */}
-                    {viewMode === "diff" && (
                       <div className="space-y-3">
                         {diffs.length === 0 ? (
                           <div className="p-4 rounded-xl bg-matt-black-200/40 border border-white-chalk-100/10 text-center space-y-1">
@@ -572,108 +504,6 @@ export function ProductRevisionTimeline({
                           </div>
                         )}
                       </div>
-                    )}
-
-                    {/* VIEW 2: FULL SNAPSHOT DATA */}
-                    {viewMode === "snapshot" && (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 text-xs">
-                          {/* Basic Profile */}
-                          <div className="p-3 rounded-xl bg-matt-black-200/50 border border-white-chalk-100/10 space-y-1">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-white-chalk-100/40">
-                              Product Name
-                            </span>
-                            <p className="font-semibold text-white-chalk-100">
-                              {snapshotData.name || "Untitled"}
-                            </p>
-                            <p className="text-[10px] font-mono text-white-chalk-100/50">
-                              slug: {snapshotData.slug || "—"}
-                            </p>
-                          </div>
-
-                          <div className="p-3 rounded-xl bg-matt-black-200/50 border border-white-chalk-100/10 space-y-1">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-white-chalk-100/40">
-                              Status & Visibility
-                            </span>
-                            <div className="flex items-center gap-1.5 pt-0.5">
-                              {getStatusBadge(snapshotData.status || "DRAFT")}
-                              <span className="text-[11px] font-mono text-white-chalk-100/70">
-                                {snapshotData.visibility || "VISIBLE"}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="p-3 rounded-xl bg-matt-black-200/50 border border-white-chalk-100/10 space-y-1">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-white-chalk-100/40">
-                              Brand & Origin
-                            </span>
-                            <p className="text-white-chalk-100 font-medium">
-                              {snapshotData.brand?.name || snapshotData.brandName || "No Brand"}
-                            </p>
-                            <p className="text-[10px] text-white-chalk-100/40">
-                              {snapshotData.countryOfOrigin || "Not specified"}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Categories */}
-                        {Array.isArray(snapshotData.categories) && snapshotData.categories.length > 0 && (
-                          <div className="p-3 rounded-xl bg-matt-black-200/50 border border-white-chalk-100/10 space-y-1.5">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-white-chalk-100/40">
-                              Assigned Categories ({snapshotData.categories.length})
-                            </span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {snapshotData.categories.map((cat: any, cIdx: number) => (
-                                <span
-                                  key={cIdx}
-                                  className="px-2 py-0.5 rounded-lg bg-sunflower-100/10 text-sunflower-100 border border-sunflower-100/20 text-xs font-medium"
-                                >
-                                  {typeof cat === "string" ? cat : cat.name || cat.id}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Images */}
-                        {Array.isArray(snapshotData.images) && snapshotData.images.length > 0 && (
-                          <div className="p-3 rounded-xl bg-matt-black-200/50 border border-white-chalk-100/10 space-y-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-white-chalk-100/40">
-                              Images Gallery ({snapshotData.images.length})
-                            </span>
-                            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                              {snapshotData.images.map((img: any, iIdx: number) => (
-                                <div
-                                  key={iIdx}
-                                  className="relative aspect-square rounded-lg overflow-hidden bg-black/40 border border-white-chalk-100/10"
-                                >
-                                  <img
-                                    src={typeof img === "string" ? img : img.url}
-                                    alt="Product"
-                                    className="w-full h-full object-cover"
-                                  />
-                                  {img.isPrimary && (
-                                    <span className="absolute top-1 left-1 bg-sunflower-100 text-matt-black-100 text-[8px] font-bold px-1 rounded shadow">
-                                      PRIMARY
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Raw JSON viewer */}
-                        <details className="text-[11px] text-white-chalk-100/50 cursor-pointer pt-1">
-                          <summary className="hover:text-sunflower-100 transition">
-                            View Raw JSON Snapshot
-                          </summary>
-                          <pre className="mt-2 p-3 rounded-xl bg-matt-black-300 text-[10px] font-mono text-white-chalk-100/80 overflow-x-auto max-h-48 border border-white-chalk-100/10">
-                            {JSON.stringify(snapshotData, null, 2)}
-                          </pre>
-                        </details>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -681,120 +511,6 @@ export function ProductRevisionTimeline({
           );
         })}
       </div>
-
-      {/* Compare Modal */}
-      {showCompareDialog && (
-        <div
-          onClick={() => setShowCompareDialog(false)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-3xl max-h-[85vh] bg-[#161b22] border border-white-chalk-100/15 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-          >
-            <div className="flex items-center justify-between p-4 border-b border-white-chalk-100/10">
-              <div className="flex items-center gap-2">
-                <GitCompare className="w-4 h-4 text-sunflower-100" />
-                <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                  Compare Product Revisions
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCompareDialog(false)}
-                className="p-1 rounded-lg hover:bg-white-chalk-100/10 text-white-chalk-100 transition cursor-pointer text-xs"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Selectors */}
-            <div className="p-4 border-b border-white-chalk-100/10 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-matt-black-200/40">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-white-chalk-100/50">
-                  Revision A (Target)
-                </label>
-                <select
-                  value={compareRevIdA}
-                  onChange={(e) => setCompareRevIdA(e.target.value)}
-                  className="w-full rounded-lg bg-matt-black-200 border border-white-chalk-100/15 px-3 py-1.5 text-xs text-white-chalk-100 outline-none focus:border-sunflower-100"
-                >
-                  {revisions.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      Revision #{r.revisionNumber} ({new Date(r.createdAt).toLocaleDateString()})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-white-chalk-100/50">
-                  Revision B (Base to compare against)
-                </label>
-                <select
-                  value={compareRevIdB}
-                  onChange={(e) => setCompareRevIdB(e.target.value)}
-                  className="w-full rounded-lg bg-matt-black-200 border border-white-chalk-100/15 px-3 py-1.5 text-xs text-white-chalk-100 outline-none focus:border-sunflower-100"
-                >
-                  {revisions.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      Revision #{r.revisionNumber} ({new Date(r.createdAt).toLocaleDateString()})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Comparison Output */}
-            <div className="p-4 overflow-y-auto max-h-[60vh] space-y-3 custom-scrollbar">
-              {(() => {
-                const revA = revisions.find((r) => r.id === compareRevIdA);
-                const revB = revisions.find((r) => r.id === compareRevIdB);
-                if (!revA || !revB) return null;
-
-                const comparisonDiffs = computeDiff(revA.payload, revB.payload);
-
-                if (comparisonDiffs.length === 0) {
-                  return (
-                    <div className="py-12 text-center text-xs text-white-chalk-100/40">
-                      No differences found between Revision #{revA.revisionNumber} and Revision #{revB.revisionNumber}.
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="space-y-2.5">
-                    <p className="text-xs text-white-chalk-100/70 font-medium">
-                      Showing differences between <strong className="text-sunflower-100">Rev #{revB.revisionNumber}</strong> and <strong className="text-emerald-400">Rev #{revA.revisionNumber}</strong>:
-                    </p>
-                    {comparisonDiffs.map((diff, idx) => (
-                      <div
-                        key={idx}
-                        className="p-3 rounded-xl bg-matt-black-200/70 border border-white-chalk-100/10 space-y-1 text-xs"
-                      >
-                        <div className="flex items-center justify-between font-semibold text-sunflower-100">
-                          <span>{diff.label}</span>
-                          <span className="text-[10px] font-mono text-white-chalk-100/40 uppercase">
-                            {diff.field}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
-                          <div className="p-2 rounded bg-cadmium-red-100/10 border border-cadmium-red-100/20 text-cadmium-red-200 line-through">
-                            {String(diff.oldValue ?? "None")}
-                          </div>
-                          <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-semibold">
-                            {String(diff.newValue ?? "None")}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

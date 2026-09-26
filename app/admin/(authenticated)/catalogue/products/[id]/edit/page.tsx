@@ -274,10 +274,15 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   const [listings, setListings] = useState<SellerListingItem[]>([]);
   const [updatingListingId, setUpdatingListingId] = useState<string | null>(null);
 
+  // New Offer State
+  const [addingOffer, setAddingOffer] = useState(false);
+  const [newOfferSellerId, setNewOfferSellerId] = useState("");
+  const [newOfferPrice, setNewOfferPrice] = useState("");
+  const [newOfferStock, setNewOfferStock] = useState("");
+  const [submittingOffer, setSubmittingOffer] = useState(false);
+
   // Tab 8: History & Audit Trail
   const [revisions, setRevisions] = useState<RevisionItem[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
-  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   // Dropdown options
   const [brands, setBrands] = useState<BrandOption[]>([]);
@@ -459,10 +464,6 @@ export default function EditProductPage({ params }: EditProductPageProps) {
             setRevisions(p.productRevisions);
           }
 
-          if (Array.isArray(p.auditLogs)) {
-            setAuditLogs(p.auditLogs);
-          }
-
           setInitialSnapshot(
             buildFormSnapshot({
               name: loadedName,
@@ -580,6 +581,47 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   };
 
   // Quick listing status moderation (Approve / Suspend)
+  const handleAddOffer = async () => {
+    if (!newOfferSellerId || !newOfferPrice) {
+      setErrorMsg("Seller and Price are required to add an offer.");
+      return;
+    }
+    setSubmittingOffer(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const res = await fetch("/api/admin/listings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sellerId: newOfferSellerId,
+          productId: id,
+          price: newOfferPrice,
+          stock: newOfferStock,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to add offer");
+
+      setSuccessMsg("Offer added successfully!");
+      setAddingOffer(false);
+      setNewOfferSellerId("");
+      setNewOfferPrice("");
+      setNewOfferStock("");
+      
+      // Refresh listings
+      const listRes = await fetch(`/api/admin/products/${id}`);
+      const listData = await listRes.json();
+      if (listData.data?.listings) {
+        setListings(listData.data.listings);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setSubmittingOffer(false);
+    }
+  };
+
   const handleUpdateListingStatus = async (listingId: string, newStatus: string) => {
     setUpdatingListingId(listingId);
     try {
@@ -724,7 +766,6 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         .then((r) => r.json())
         .then((fresh) => {
           if (fresh.data?.productRevisions) setRevisions(fresh.data.productRevisions);
-          if (fresh.data?.auditLogs) setAuditLogs(fresh.data.auditLogs);
         })
         .catch(console.error);
 
@@ -1301,21 +1342,97 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                   Pricing and inventory
                 </h3>
               </div>
-              <div className="rounded-xl border border-sunflower-100/20 bg-sunflower-100/5 p-4 space-y-2">
-                <p className="text-sm font-semibold text-white-chalk-100">Seller offers own the price and stock.</p>
-                <p className="text-xs leading-5 text-white-chalk-100/60">
-                  Price, compare-at price, cost, and inventory are stored on seller offers, not on the product record. These values are not edited by saving this product form.
-                </p>
-                <p className="text-xs text-white-chalk-100/60">
-                  Current offers: {listings.length}. Review them in the Seller offers section.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("marketplace")}
-                  className="text-xs font-semibold text-sunflower-100 hover:text-sunflower-200 underline underline-offset-2"
-                >
-                  View seller offers
-                </button>
+              <div className="rounded-xl border border-sunflower-100/20 bg-sunflower-100/5 p-4 space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-white-chalk-100">Seller offers own the price and stock.</p>
+                  <p className="text-xs leading-5 text-white-chalk-100/60">
+                    Price, compare-at price, cost, and inventory are stored on seller offers, not on the product record. These values are not edited by saving this product form.
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <p className="text-xs text-white-chalk-100/60">
+                      Current offers: {listings.length}.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("marketplace")}
+                      className="text-xs font-semibold text-sunflower-100 hover:text-sunflower-200 underline underline-offset-2"
+                    >
+                      View seller offers
+                    </button>
+                  </div>
+                </div>
+
+                {addingOffer ? (
+                  <div className="bg-[#161b22] border border-white-chalk-100/10 p-4 rounded-xl space-y-4 mt-4">
+                    <h4 className="text-sm font-bold text-white-chalk-100">Add New Offer</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="new-offer-seller">Seller *</Label>
+                        <Select
+                          id="new-offer-seller"
+                          value={newOfferSellerId}
+                          onChange={(e) => setNewOfferSellerId(e.target.value)}
+                        >
+                          <option value="">Select a seller...</option>
+                          {sellers.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.shopName}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="new-offer-price">Price *</Label>
+                        <Input
+                          id="new-offer-price"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={newOfferPrice}
+                          onChange={(e) => setNewOfferPrice(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="new-offer-stock">Stock Quantity</Label>
+                        <Input
+                          id="new-offer-stock"
+                          type="number"
+                          placeholder="0"
+                          value={newOfferStock}
+                          onChange={(e) => setNewOfferStock(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 pt-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={submittingOffer}
+                        onClick={handleAddOffer}
+                      >
+                        {submittingOffer ? "Saving..." : "Save Offer"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setAddingOffer(false)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => setAddingOffer(true)}
+                  >
+                    Add Offer
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -1727,84 +1844,6 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                 />
               </div>
 
-              {/* Security Audit Logs with Expandable Diff */}
-              <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl space-y-4">
-                <div className="flex items-center justify-between border-b border-white-chalk-100/10 pb-3">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-munsell-blue-100" />
-                    <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                      System Audit Logs ({auditLogs.length})
-                    </h3>
-                  </div>
-                  <span className="text-[10px] text-white-chalk-100/40">
-                    Granular operational change logs & payload diffs
-                  </span>
-                </div>
-
-                {auditLogs.length === 0 ? (
-                  <p className="text-xs text-white-chalk-100/40 py-4 text-center">
-                    No operational audit logs recorded for this product yet.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {auditLogs.map((log) => {
-                      const isExpanded = expandedLogId === log.id;
-                      return (
-                        <div
-                          key={log.id}
-                          className="bg-matt-black-200/40 border border-white-chalk-100/10 rounded-xl p-3 text-xs space-y-2"
-                        >
-                          <div
-                            onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                            className="flex items-center justify-between cursor-pointer select-none"
-                          >
-                            <div className="flex items-center gap-2">
-                              {isExpanded ? (
-                                <ChevronDown className="w-3.5 h-3.5 text-sunflower-100" />
-                              ) : (
-                                <ChevronRight className="w-3.5 h-3.5 text-white-chalk-100/40" />
-                              )}
-                              <span className="font-bold font-mono text-sunflower-100">
-                                {log.action}
-                              </span>
-                              <span className="text-white-chalk-100/60 font-mono text-[11px]">
-                                {log.entityType}
-                              </span>
-                              <span className="text-[10px] text-white-chalk-100/40">
-                                by {log.user?.email || "System"}
-                              </span>
-                            </div>
-                            <span className="text-[10px] font-mono text-white-chalk-100/40">
-                              {new Date(log.createdAt).toLocaleString()}
-                            </span>
-                          </div>
-
-                          {isExpanded && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-white-chalk-100/10">
-                              <div className="bg-matt-black-300 rounded-lg p-2.5 space-y-1">
-                                <span className="text-[10px] font-bold text-cadmium-red-200 uppercase tracking-wider">
-                                  Previous State (Old Data)
-                                </span>
-                                <pre className="text-[10px] font-mono text-white-chalk-100/70 overflow-x-auto max-h-40">
-                                  {JSON.stringify(log.oldData, null, 2) || "None"}
-                                </pre>
-                              </div>
-                              <div className="bg-matt-black-300 rounded-lg p-2.5 space-y-1">
-                                <span className="text-[10px] font-bold text-pablano-200 uppercase tracking-wider">
-                                  Applied State (New Data)
-                                </span>
-                                <pre className="text-[10px] font-mono text-white-chalk-100/70 overflow-x-auto max-h-40">
-                                  {JSON.stringify(log.newData, null, 2) || "None"}
-                                </pre>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
             </div>
           )}
         </div>
