@@ -29,6 +29,14 @@ import {
   Check,
 } from "lucide-react";
 import { AdminBadge } from "@/components/admin/AdminUI";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/select";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { CategorySelector } from "@/components/ui/category-selector";
+import { MediaUploader, type MediaImage } from "@/components/ui/media-uploader";
 import type { BlockNoteEditorRef } from "@/components/blocknote/blocknoteEditor";
 
 const BlockNoteEditor = dynamic(
@@ -51,6 +59,13 @@ interface BrandOption {
 interface CategoryOption {
   id: string;
   name: string;
+  slug?: string;
+  parentId?: string | null;
+  parent?: {
+    id: string;
+    name: string;
+  } | null;
+  children?: CategoryOption[];
 }
 
 interface SellerOption {
@@ -58,11 +73,7 @@ interface SellerOption {
   shopName: string;
 }
 
-interface ProductImg {
-  url: string;
-  altText: string;
-  isPrimary: boolean;
-}
+type ProductImg = MediaImage;
 
 interface VariantItem {
   id: string;
@@ -144,14 +155,6 @@ export default function NewProductPage() {
         if (Array.isArray(d.data)) setBrands(d.data);
       })
       .catch((e) => console.error("Error loading brands:", e));
-
-    fetch("/api/admin/categories?limit=100")
-      .then((r) => r.json())
-      .then((d) => {
-        const catList = d.data?.categories || d.data || [];
-        if (Array.isArray(catList)) setCategories(catList);
-      })
-      .catch((e) => console.error("Error loading categories:", e));
 
     fetch("/api/admin/sellers?limit=100")
       .then((r) => r.json())
@@ -366,31 +369,32 @@ export default function NewProductPage() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <Link
-            href="/admin/catalogue/products"
-            className="px-4 py-2 rounded-xl text-xs font-semibold bg-matt-black-200 text-white-chalk-100 hover:bg-matt-black-300 transition cursor-pointer"
-          >
-            Cancel
-          </Link>
+          <Button asChild variant="secondary" size="sm">
+            <Link href="/admin/catalogue/products">
+              Cancel
+            </Link>
+          </Button>
 
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             disabled={saving}
             onClick={() => handleSubmit(undefined, true)}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-matt-black-200 hover:bg-matt-black-300 text-white-chalk-100 border border-white-chalk-100/15 transition cursor-pointer disabled:opacity-40"
           >
             Save & Continue Edit
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="button"
+            variant="default"
+            size="sm"
             disabled={saving}
             onClick={() => handleSubmit()}
-            className="px-5 py-2 rounded-xl text-xs font-bold bg-sunflower-100 text-matt-black-100 hover:bg-sunflower-200 transition disabled:opacity-40 cursor-pointer shadow-lg shadow-sunflower-100/20 flex items-center gap-1.5"
           >
             <Save className="w-4 h-4" />
             {saving ? "Saving Product..." : "Save Product"}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -452,259 +456,284 @@ export default function NewProductPage() {
         <div className="lg:col-span-3 space-y-6">
           {/* TAB 1: GENERAL SETTINGS */}
           {activeTab === "general" && (
-            <div className="bg-matt-black-100 border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl shadow-black/20 space-y-5">
-              <div className="flex items-center gap-2 border-b border-white-chalk-100/10 pb-3">
-                <Package className="w-4 h-4 text-sunflower-100" />
-                <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                  General Product Information
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Product Title / Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Sony WH-1000XM5 Wireless Headphones"
-                    value={name}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    SKU prefix for variants (optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. SONY-WH1000XM5"
-                    value={sku}
-                    onChange={(e) => setSku(e.target.value)}
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
-                  />
-                  <p className="mt-1 text-[10px] text-white-chalk-100/40">
-                    Used to suggest SKUs when you generate variants. The prefix itself is not stored as a product SKU.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    URL Key / Slug *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="sony-wh-1000xm5-wireless-headphones"
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Brand
-                  </label>
-                  <select
-                    value={selectedBrandId}
-                    onChange={(e) => setSelectedBrandId(e.target.value)}
-                    className="w-full bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-sunflower-100/50 cursor-pointer"
-                  >
-                    <option value="">No Brand (Generic / Unbranded)</option>
-                    {brands.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Product Type
-                  </label>
-                  <select
-                    value={productType}
-                    onChange={(e) => setProductType(e.target.value)}
-                    className="w-full bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-sunflower-100/50 cursor-pointer"
-                  >
-                    <option value="SIMPLE">SIMPLE (Single Item)</option>
-                    <option value="CONFIGURABLE">CONFIGURABLE (Variants: Color/Size)</option>
-                    <option value="BUNDLE">BUNDLE (Package)</option>
-                    <option value="VIRTUAL">VIRTUAL (Service / Code)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Catalog Status
-                  </label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    className="w-full bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-sunflower-100/50 cursor-pointer"
-                  >
-                    <option value="ACTIVE">ACTIVE (Published)</option>
-                    <option value="DRAFT">DRAFT (Drafting)</option>
-                    <option value="INACTIVE">INACTIVE (Hidden)</option>
-                    <option value="ARCHIVED">ARCHIVED</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Storefront Visibility
-                  </label>
-                  <select
-                    value={visibility}
-                    onChange={(e) => setVisibility(e.target.value)}
-                    className="w-full bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-sunflower-100/50 cursor-pointer"
-                  >
-                    <option value="VISIBLE">Catalog & Search</option>
-                    <option value="CATALOG_ONLY">Catalog Only</option>
-                    <option value="SEARCH_ONLY">Search Only</option>
-                    <option value="HIDDEN">Not Visible Individually</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Categories Selector */}
-              <div className="pt-2">
-                <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                  Taxonomy Categories ({selectedCategoryIds.length} assigned)
-                </label>
-                <div className="max-h-36 overflow-y-auto bg-matt-black-200/40 border border-white-chalk-100/10 rounded-xl p-2.5 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {categories.map((c) => (
-                    <label
-                      key={c.id}
-                      className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white-chalk-100/5 text-xs text-white-chalk-100 cursor-pointer select-none"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedCategoryIds.includes(c.id)}
-                        onChange={() => toggleCategory(c.id)}
-                        className="rounded border-white-chalk-100/20 text-sunflower-100 accent-sunflower-100 cursor-pointer"
+            <div className="space-y-6">
+              {/* Card 1: Product Identification & Basics */}
+              <Card>
+                <CardHeader className="flex flex-row items-center gap-2.5 space-y-0 pb-4">
+                  <Package className="w-4 h-4 text-sunflower-100 shrink-0" />
+                  <div>
+                    <CardTitle>Product Identification</CardTitle>
+                    <CardDescription>
+                      Master catalog title, manufacturer brand, and storefront URL key
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <Label htmlFor="new-product-name">
+                        Product Title / Name *
+                      </Label>
+                      <Input
+                        id="new-product-name"
+                        type="text"
+                        required
+                        placeholder="e.g. Sony WH-1000XM5 Wireless Headphones"
+                        value={name}
+                        onChange={(e) => handleNameChange(e.target.value)}
                       />
-                      <span>{c.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+                    </div>
 
-              {/* Logistics & Dimensions */}
-              <div className="pt-4 border-t border-white-chalk-100/10 space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-white-chalk-100/70 flex items-center gap-1.5">
-                  <Ruler className="w-3.5 h-3.5 text-sunflower-100" />
-                  Manufacturing & Shipping Dimensions
-                </h4>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-product-brand">
+                        Brand / Manufacturer
+                      </Label>
+                      <Select
+                        id="new-product-brand"
+                        value={selectedBrandId}
+                        onChange={(e) => setSelectedBrandId(e.target.value)}
+                      >
+                        <option value="">No Brand (Generic / Unbranded)</option>
+                        {brands.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-product-slug">
+                        URL Key / Slug *
+                      </Label>
+                      <Input
+                        id="new-product-slug"
+                        type="text"
+                        required
+                        placeholder="sony-wh-1000xm5-wireless-headphones"
+                        value={slug}
+                        onChange={(e) => setSlug(e.target.value)}
+                        className="font-mono"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <Label htmlFor="new-product-sku">
+                        SKU prefix for variants (optional)
+                      </Label>
+                      <Input
+                        id="new-product-sku"
+                        type="text"
+                        placeholder="e.g. SONY-WH1000XM5"
+                        value={sku}
+                        onChange={(e) => setSku(e.target.value)}
+                        className="font-mono"
+                      />
+                      <p className="text-[10px] text-white-chalk-100/40">
+                        Used to suggest SKUs when you generate variants. The prefix itself is not stored as a product SKU.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Card 2: Taxonomy & Category Placement (Interactive Search + Tree) */}
+              <Card>
+                <CardHeader className="flex flex-row items-center gap-2.5 space-y-0 pb-4">
+                  <Layers className="w-4 h-4 text-sunflower-100 shrink-0" />
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Model Number (MPN)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. WH-1000XM5"
-                      value={modelNumber}
-                      onChange={(e) => setModelNumber(e.target.value)}
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
+                    <CardTitle>Taxonomy & Category Placement</CardTitle>
+                    <CardDescription>
+                      Assign this product into parent and nested departmental categories with type-to-search
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <CategorySelector
+                    selectedIds={selectedCategoryIds}
+                    onChange={setSelectedCategoryIds}
+                    categories={categories}
+                    label="Assigned Categories"
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Card 3: Governance & Storefront Visibility */}
+              <Card>
+                <CardHeader className="flex flex-row items-center gap-2.5 space-y-0 pb-4">
+                  <Sliders className="w-4 h-4 text-sunflower-100 shrink-0" />
+                  <div>
+                    <CardTitle>Product Governance & Visibility</CardTitle>
+                    <CardDescription>
+                      Control catalog lifecycle state, storefront discoverability, and product architecture
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-catalog-status">
+                        Catalog Status
+                      </Label>
+                      <Select
+                        id="new-catalog-status"
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                      >
+                        <option value="ACTIVE">ACTIVE (Published)</option>
+                        <option value="DRAFT">DRAFT (Drafting)</option>
+                        <option value="INACTIVE">INACTIVE (Hidden)</option>
+                        <option value="ARCHIVED">ARCHIVED</option>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-visibility">
+                        Storefront Visibility
+                      </Label>
+                      <Select
+                        id="new-visibility"
+                        value={visibility}
+                        onChange={(e) => setVisibility(e.target.value)}
+                      >
+                        <option value="VISIBLE">Catalog & Search</option>
+                        <option value="CATALOG_ONLY">Catalog Only</option>
+                        <option value="SEARCH_ONLY">Search Only</option>
+                        <option value="HIDDEN">Not Visible Individually</option>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-product-type">
+                        Product Type
+                      </Label>
+                      <Select
+                        id="new-product-type"
+                        value={productType}
+                        onChange={(e) => setProductType(e.target.value)}
+                      >
+                        <option value="SIMPLE">SIMPLE (Single Item)</option>
+                        <option value="CONFIGURABLE">CONFIGURABLE (Variants: Color/Size)</option>
+                        <option value="BUNDLE">BUNDLE (Package)</option>
+                        <option value="VIRTUAL">VIRTUAL (Service / Code)</option>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Card 4: Logistics & Dimensions */}
+              <Card>
+                <CardHeader className="flex flex-row items-center gap-2.5 space-y-0 pb-4">
+                  <Ruler className="w-4 h-4 text-sunflower-100 shrink-0" />
+                  <div>
+                    <CardTitle>Manufacturing & Shipping Dimensions</CardTitle>
+                    <CardDescription>
+                      Manufacturer part numbers and shipping parcel logistics specifications
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-model-number">
+                        Model Number (MPN)
+                      </Label>
+                      <Input
+                        id="new-model-number"
+                        type="text"
+                        placeholder="e.g. WH-1000XM5"
+                        value={modelNumber}
+                        onChange={(e) => setModelNumber(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-manufacturer">
+                        Manufacturer
+                      </Label>
+                      <Input
+                        id="new-manufacturer"
+                        type="text"
+                        placeholder="e.g. Sony Corporation"
+                        value={manufacturer}
+                        onChange={(e) => setManufacturer(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-country-origin">
+                        Country of Origin
+                      </Label>
+                      <Input
+                        id="new-country-origin"
+                        type="text"
+                        placeholder="Pakistan"
+                        value={countryOfOrigin}
+                        onChange={(e) => setCountryOfOrigin(e.target.value)}
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Manufacturer
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Sony Corporation"
-                      value={manufacturer}
-                      onChange={(e) => setManufacturer(e.target.value)}
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
-                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-weight">
+                        Weight (kg)
+                      </Label>
+                      <Input
+                        id="new-weight"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.25"
+                        value={weight}
+                        onChange={(e) => setWeight(e.target.value)}
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Country of Origin
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Pakistan"
-                      value={countryOfOrigin}
-                      onChange={(e) => setCountryOfOrigin(e.target.value)}
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
-                  </div>
-                </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-length">
+                        Length (cm)
+                      </Label>
+                      <Input
+                        id="new-length"
+                        type="number"
+                        step="0.1"
+                        placeholder="20"
+                        value={length}
+                        onChange={(e) => setLength(e.target.value)}
+                      />
+                    </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Weight (kg)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.25"
-                      value={weight}
-                      onChange={(e) => setWeight(e.target.value)}
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
-                  </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-width">
+                        Width (cm)
+                      </Label>
+                      <Input
+                        id="new-width"
+                        type="number"
+                        step="0.1"
+                        placeholder="16"
+                        value={width}
+                        onChange={(e) => setWidth(e.target.value)}
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Length (cm)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      placeholder="20"
-                      value={length}
-                      onChange={(e) => setLength(e.target.value)}
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-height">
+                        Height (cm)
+                      </Label>
+                      <Input
+                        id="new-height"
+                        type="number"
+                        step="0.1"
+                        placeholder="8"
+                        value={height}
+                        onChange={(e) => setHeight(e.target.value)}
+                      />
+                    </div>
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Width (cm)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      placeholder="16"
-                      value={width}
-                      onChange={(e) => setWidth(e.target.value)}
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Height (cm)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      placeholder="8"
-                      value={height}
-                      onChange={(e) => setHeight(e.target.value)}
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
@@ -765,104 +794,14 @@ export default function NewProductPage() {
 
           {/* TAB 3: IMAGES & MEDIA */}
           {activeTab === "images" && (
-            <div className="bg-matt-black-100 border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl shadow-black/20 space-y-5">
-              <div className="flex items-center justify-between border-b border-white-chalk-100/10 pb-3">
-                <div className="flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-munsell-blue-100" />
-                  <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                    Images and Media Gallery
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingImage}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-sunflower-100 text-matt-black-100 hover:bg-sunflower-200 transition flex items-center gap-1.5 cursor-pointer shadow-lg shadow-sunflower-100/20"
-                >
-                  <UploadCloud className="w-3.5 h-3.5" />
-                  {uploadingImage ? "Uploading..." : "Upload New Image"}
-                </button>
-              </div>
-
-              {images.length === 0 ? (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="rounded-2xl border-2 border-dashed border-white-chalk-100/15 hover:border-sunflower-100/50 bg-matt-black-200/30 p-10 flex flex-col items-center justify-center gap-2.5 text-center cursor-pointer transition group"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-sunflower-100/10 border border-sunflower-100/20 flex items-center justify-center text-sunflower-100 group-hover:scale-105 transition">
-                    <UploadCloud className="w-6 h-6" />
-                  </div>
-                  <p className="text-xs font-bold text-white-chalk-100 group-hover:text-sunflower-100 transition">
-                    Drag and drop images here or browse files
-                  </p>
-                  <p className="text-[10px] text-white-chalk-100/40">
-                    Recommended 800×800 or 1000×1000 px • PNG, JPG, WEBP (Max 15MB)
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {images.map((img, idx) => (
-                    <div
-                      key={idx}
-                      className={`group relative rounded-xl border p-2 bg-matt-black-200/60 overflow-hidden space-y-2 ${
-                        img.isPrimary
-                          ? "border-sunflower-100 shadow-md shadow-sunflower-100/15"
-                          : "border-white-chalk-100/15 hover:border-white-chalk-100/30"
-                      }`}
-                    >
-                      <div className="aspect-square rounded-lg overflow-hidden bg-matt-black-300 relative flex items-center justify-center">
-                        <img
-                          src={img.url}
-                          alt={img.altText}
-                          className="w-full h-full object-cover"
-                        />
-
-                        {img.isPrimary && (
-                          <span className="absolute top-2 left-2 bg-sunflower-100 text-matt-black-100 text-[10px] font-bold px-2 py-0.5 rounded shadow">
-                            Base / Primary
-                          </span>
-                        )}
-
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
-                          {!img.isPrimary && (
-                            <button
-                              type="button"
-                              onClick={() => setPrimaryImage(idx)}
-                              className="p-1.5 rounded-lg bg-sunflower-100 text-matt-black-100 text-xs font-bold hover:bg-sunflower-200 cursor-pointer"
-                              title="Set as Base Image"
-                            >
-                              <Star className="w-3.5 h-3.5 fill-current" />
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => removeImage(idx)}
-                            className="p-1.5 rounded-lg bg-cadmium-red-100 text-white-chalk-100 text-xs font-bold hover:bg-cadmium-red-200 cursor-pointer"
-                            title="Remove Image"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <input
-                          type="text"
-                          placeholder="Alt tag / image label..."
-                          value={img.altText}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setImages((prev) =>
-                              prev.map((item, i) => (i === idx ? { ...item, altText: val } : item))
-                            );
-                          }}
-                          className="w-full bg-matt-black-300/80 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-lg px-2 py-1 text-[11px] text-white-chalk-100 outline-none"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="bg-matt-black-100 border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl shadow-black/20">
+              <MediaUploader
+                images={images}
+                onChange={(newImgs) => setImages(newImgs)}
+                productName={name}
+                folder="products"
+                maxFiles={24}
+              />
             </div>
           )}
 
@@ -922,38 +861,37 @@ export default function NewProductPage() {
               ) : (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-xl bg-matt-black-200/40 border border-white-chalk-100/10">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px]">
                         Attribute Name
-                      </label>
-                      <input
+                      </Label>
+                      <Input
                         type="text"
                         placeholder="e.g. Size or Color"
                         value={variantOptionName}
                         onChange={(e) => setVariantOptionName(e.target.value)}
-                        className="w-full bg-matt-black-300 border border-white-chalk-100/10 rounded-lg px-2.5 py-1.5 text-xs text-white-chalk-100 outline-none"
                       />
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px]">
                         Options (Comma separated)
-                      </label>
-                      <input
+                      </Label>
+                      <Input
                         type="text"
                         placeholder="Small, Medium, Large"
                         value={variantValuesInput}
                         onChange={(e) => setVariantValuesInput(e.target.value)}
-                        className="w-full bg-matt-black-300 border border-white-chalk-100/10 rounded-lg px-2.5 py-1.5 text-xs text-white-chalk-100 outline-none"
                       />
                     </div>
                     <div className="flex items-end">
-                      <button
+                      <Button
                         type="button"
+                        variant="secondary"
                         onClick={handleGenerateVariants}
-                        className="w-full py-1.5 rounded-lg text-xs font-bold bg-sunflower-100/15 hover:bg-sunflower-100/25 text-sunflower-100 border border-sunflower-100/30 transition cursor-pointer"
+                        className="w-full text-sunflower-100 border border-sunflower-100/30 hover:bg-sunflower-100/15"
                       >
                         Generate Matrix
-                      </button>
+                      </Button>
                     </div>
                   </div>
 
@@ -1033,67 +971,71 @@ export default function NewProductPage() {
                 </p>
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60">
-                    Meta Title Tag
-                  </label>
-                  <span className="text-[11px] font-mono text-white-chalk-100/40">
-                    {metaTitle.length} / 60 characters
-                  </span>
-                </div>
-                <input
-                  type="text"
-                  placeholder="e.g. Sony WH-1000XM5 Headphones | StoreFraming"
-                  value={metaTitle}
-                  onChange={(e) => setMetaTitle(e.target.value)}
-                  className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60">
-                    Meta Description
-                  </label>
-                  <span className="text-[11px] font-mono text-white-chalk-100/40">
-                    {metaDescription.length} / 160 characters
-                  </span>
-                </div>
-                <textarea
-                  rows={3}
-                  placeholder="Compelling storefront summary for search engine results..."
-                  value={metaDescription}
-                  onChange={(e) => setMetaDescription(e.target.value)}
-                  className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl p-3 text-xs text-white-chalk-100 outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Meta Keywords
-                  </label>
-                  <input
+              <div className="space-y-4 pt-2">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="new-seo-title">
+                      Meta Title Tag
+                    </Label>
+                    <span className="text-[11px] font-mono text-white-chalk-100/40">
+                      {metaTitle.length} / 60 characters
+                    </span>
+                  </div>
+                  <Input
+                    id="new-seo-title"
                     type="text"
-                    placeholder="wireless, noise cancelling, sony, headphones"
-                    value={metaKeywords}
-                    onChange={(e) => setMetaKeywords(e.target.value)}
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
+                    placeholder="e.g. Sony WH-1000XM5 Headphones | StoreFraming"
+                    value={metaTitle}
+                    onChange={(e) => setMetaTitle(e.target.value)}
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                    Canonical URL Override (Optional)
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://storeframing.pk/products/..."
-                    value={canonicalUrl}
-                    onChange={(e) => setCanonicalUrl(e.target.value)}
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="new-seo-desc">
+                      Meta Description
+                    </Label>
+                    <span className="text-[11px] font-mono text-white-chalk-100/40">
+                      {metaDescription.length} / 160 characters
+                    </span>
+                  </div>
+                  <textarea
+                    id="new-seo-desc"
+                    rows={3}
+                    placeholder="Compelling storefront summary for search engine results..."
+                    value={metaDescription}
+                    onChange={(e) => setMetaDescription(e.target.value)}
+                    className="flex w-full rounded-xl border border-white-chalk-100/15 bg-matt-black-200/50 px-3.5 py-2 text-xs text-white-chalk-100 shadow-sm transition-colors placeholder:text-white-chalk-100/35 focus-visible:outline-none focus-visible:border-sunflower-100/60 focus-visible:ring-1 focus-visible:ring-sunflower-100/40 resize-none"
                   />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="new-seo-keywords">
+                      Meta Keywords
+                    </Label>
+                    <Input
+                      id="new-seo-keywords"
+                      type="text"
+                      placeholder="wireless, noise cancelling, sony, headphones"
+                      value={metaKeywords}
+                      onChange={(e) => setMetaKeywords(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="new-seo-canonical">
+                      Canonical URL Override (Optional)
+                    </Label>
+                    <Input
+                      id="new-seo-canonical"
+                      type="url"
+                      placeholder="https://storeframing.pk/products/..."
+                      value={canonicalUrl}
+                      onChange={(e) => setCanonicalUrl(e.target.value)}
+                      className="font-mono"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1110,14 +1052,14 @@ export default function NewProductPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
+                <div className="space-y-1.5">
+                  <Label htmlFor="new-ownership-scope">
                     Product Ownership Scope
-                  </label>
-                  <select
+                  </Label>
+                  <Select
+                    id="new-ownership-scope"
                     value={ownershipType}
                     onChange={(e) => setOwnershipType(e.target.value)}
-                    className="w-full bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-sunflower-100/50 cursor-pointer"
                   >
                     <option value="PLATFORM">
                       PLATFORM (Shared Master Catalogue - Any approved seller can list offers)
@@ -1125,18 +1067,18 @@ export default function NewProductPage() {
                     <option value="SELLER_EXCLUSIVE">
                       SELLER_EXCLUSIVE (Restricted to a single designated vendor store)
                     </option>
-                  </select>
+                  </Select>
                 </div>
 
                 {ownershipType === "SELLER_EXCLUSIVE" && (
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="new-designated-seller">
                       Designated Exclusive Seller Owner *
-                    </label>
-                    <select
+                    </Label>
+                    <Select
+                      id="new-designated-seller"
                       value={ownerSellerId}
                       onChange={(e) => setOwnerSellerId(e.target.value)}
-                      className="w-full bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-sunflower-100/50 cursor-pointer"
                     >
                       <option value="">Select Exclusive Merchant...</option>
                       {sellers.map((s) => (
@@ -1144,7 +1086,7 @@ export default function NewProductPage() {
                           {s.shopName}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                 )}
               </div>

@@ -33,13 +33,13 @@ interface Submission {
   id: string;
   title: string;
   status:
-    | "DRAFT"
-    | "SUBMITTED"
-    | "PENDING_REVIEW"
-    | "UNDER_REVIEW"
-    | "APPROVED"
-    | "REJECTED"
-    | "RESUBMITTED";
+  | "DRAFT"
+  | "SUBMITTED"
+  | "PENDING_REVIEW"
+  | "UNDER_REVIEW"
+  | "APPROVED"
+  | "REJECTED"
+  | "RESUBMITTED";
   rejectionReason?: string | null;
   submittedAt?: string | null;
   reviewedAt?: string | null;
@@ -337,7 +337,7 @@ export default function ProductSubmissionsPage() {
               <td className="px-5 py-3.5">
                 <div className="flex items-center gap-1.5 text-white-chalk-100/90 font-medium text-xs">
                   <Store className="w-3.5 h-3.5 text-sunflower-100 shrink-0" />
-                  <span className="truncate max-w-[130px]">
+                  <span className="truncate max-w-32.5">
                     {sub.seller?.shopName || "Unknown Seller"}
                   </span>
                 </div>

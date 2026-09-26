@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withApiHandler } from "@/lib/api-handler";
 
-export const POST = withApiHandler(async () => {
+const handleLogout = async () => {
     const response = NextResponse.json({
         success: true,
         message: "Logged out successfully",
@@ -15,7 +15,12 @@ export const POST = withApiHandler(async () => {
         sameSite: "lax",
         path: "/",
         maxAge: 0,
+        expires: new Date(0),
     });
 
     return response;
-});
+};
+
+export const POST = withApiHandler(handleLogout);
+export const GET = withApiHandler(handleLogout);
+

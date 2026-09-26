@@ -119,9 +119,25 @@ const navModules = [
 export default function AdminSidebar() {
   const pathname = usePathname();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const toggleMenu = (name: string) => {
     setOpenMenus((prev) => ({ ...prev, [name]: !prev[name] }));
+  };
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+    } catch (err) {
+      console.error("Logout request failed:", err);
+    } finally {
+      document.cookie = "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      window.location.href = "/admin/login";
+    }
   };
 
   return (
@@ -160,8 +176,8 @@ export default function AdminSidebar() {
         <nav className="space-y-0.5 px-2">
           {navModules.map((module) => {
             const isActive = module.href
-              ? pathname === module.href
-              : module.submenus?.some((s) => pathname.startsWith(s.href));
+              ? pathname === module.href || pathname.startsWith(module.href + '/')
+              : module.submenus?.some((s) => pathname === s.href || pathname.startsWith(s.href + '/'));
             const isOpen = openMenus[module.name] || isActive;
 
             return (
@@ -243,7 +259,7 @@ export default function AdminSidebar() {
                     {isOpen && module.submenus && (
                       <div className="mt-0.5 ml-7 pl-3 space-y-0.5 border-l" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
                         {module.submenus.map((sub) => {
-                          const subActive = pathname === sub.href;
+                          const subActive = pathname === sub.href || pathname.startsWith(sub.href + '/');
                           return (
                             <Link
                               key={sub.name}
@@ -301,7 +317,9 @@ export default function AdminSidebar() {
             </p>
           </div>
           <button
-            className="p-1.5 rounded-md transition-colors cursor-pointer"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-50"
             style={{ color: "rgba(255,255,255,0.35)" }}
             onMouseEnter={(e) =>
               ((e.currentTarget as HTMLElement).style.color = "#ef4444")
@@ -310,9 +328,9 @@ export default function AdminSidebar() {
             ((e.currentTarget as HTMLElement).style.color =
               "rgba(255,255,255,0.35)")
             }
-            title="Logout"
+            title={isLoggingOut ? "Logging out..." : "Logout"}
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className={`w-4 h-4 ${isLoggingOut ? "animate-pulse" : ""}`} />
           </button>
         </div>
       </div>

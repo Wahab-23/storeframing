@@ -530,11 +530,30 @@ export async function listCategories(params: {
                 sortOrder: true,
                 createdAt: true,
                 updatedAt: true,
+                _count: {
+                    select: {
+                        children: true,
+                    },
+                },
                 parent: {
                     select: {
                         id: true,
                         name: true,
                         slug: true,
+                        parent: {
+                            select: {
+                                id: true,
+                                name: true,
+                                slug: true,
+                                parent: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        slug: true,
+                                    },
+                                },
+                            },
+                        },
                     },
                 },
                 seo: {

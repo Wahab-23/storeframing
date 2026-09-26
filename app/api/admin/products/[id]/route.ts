@@ -21,7 +21,15 @@ export const GET = withApiHandler(async (request: NextRequest, context: RouteCon
             seo: true,
             categories: {
                 include: {
-                    category: true,
+                    category: {
+                        include: {
+                            parent: {
+                                include: {
+                                    parent: true,
+                                }
+                            }
+                        }
+                    },
                 }
             },
             images: {
@@ -119,7 +127,13 @@ export const PATCH = withApiHandler(async (request: NextRequest, context: RouteC
 
     const existingProduct = await prisma.product.findUnique({
         where: { id },
-        include: { categories: true, images: true, seo: true }
+        include: {
+            brand: true,
+            categories: { include: { category: true } },
+            images: { orderBy: { sortOrder: "asc" } },
+            variants: true,
+            seo: true,
+        }
     });
 
     if (!existingProduct) {
@@ -129,6 +143,7 @@ export const PATCH = withApiHandler(async (request: NextRequest, context: RouteC
     const {
         name,
         slug,
+        sku,
         shortDescription,
         description,
         brandId,
@@ -150,12 +165,27 @@ export const PATCH = withApiHandler(async (request: NextRequest, context: RouteC
         variants,
     } = body;
 
+    const trimmedSku = typeof sku === "string" ? sku.trim() : undefined;
+
     if (name !== undefined && (typeof name !== "string" || !name.trim())) {
         throw new AppError(400, "Product name is required.");
     }
 
     if (slug !== undefined && (typeof slug !== "string" || !slug.trim())) {
         throw new AppError(400, "Product URL key is required.");
+    }
+
+    // Check SKU collision if SKU provided
+    if (trimmedSku) {
+        const skuConflict = await prisma.productVariant.findFirst({
+            where: {
+                sku: trimmedSku,
+                productId: { not: id }
+            }
+        });
+        if (skuConflict) {
+            throw new AppError(409, `A product variant with SKU "${trimmedSku}" already exists.`);
+        }
     }
 
     const nextOwnershipType = ownershipType ?? existingProduct.ownershipType;
@@ -232,14 +262,19 @@ export const PATCH = withApiHandler(async (request: NextRequest, context: RouteC
             });
         }
 
-        // Handle Variants if Configurable
+        // Handle Variants & SKU
         if (Array.isArray(variants)) {
             await tx.productVariant.deleteMany({
                 where: { productId: id }
             });
 
             if (variants.length > 0) {
-                for (const v of variants) {
+                const varList = [...variants];
+                // If single variant and trimmedSku provided, enforce trimmedSku
+                if (varList.length === 1 && trimmedSku) {
+                    varList[0] = { ...varList[0], sku: trimmedSku };
+                }
+                for (const v of varList) {
                     await tx.productVariant.create({
                         data: {
                             productId: id,
@@ -248,7 +283,44 @@ export const PATCH = withApiHandler(async (request: NextRequest, context: RouteC
                         }
                     });
                 }
+            } else if (trimmedSku) {
+                // If variants was empty array but a SKU was provided, create default variant
+                await tx.productVariant.create({
+                    data: {
+                        productId: id,
+                        name: "Default",
+                        sku: trimmedSku,
+                    }
+                });
             }
+        } else if (trimmedSku) {
+            // Variants not explicitly posted in body, but SKU was changed
+            const existingVariant = await tx.productVariant.findFirst({
+                where: { productId: id },
+                orderBy: { createdAt: "asc" }
+            });
+            if (existingVariant) {
+                await tx.productVariant.update({
+                    where: { id: existingVariant.id },
+                    data: { sku: trimmedSku }
+                });
+            } else {
+                await tx.productVariant.create({
+                    data: {
+                        productId: id,
+                        name: "Default",
+                        sku: trimmedSku,
+                    }
+                });
+            }
+        }
+
+        // Also sync sellerListing sellerSku if trimmedSku was provided
+        if (trimmedSku) {
+            await tx.sellerListing.updateMany({
+                where: { productId: id },
+                data: { sellerSku: trimmedSku }
+            });
         }
 
         // Update Product Fields
@@ -287,29 +359,224 @@ export const PATCH = withApiHandler(async (request: NextRequest, context: RouteC
             }
         });
 
-        // Record a Product Revision for History Tracking
+        // Calculate detailed changed fields between existingProduct and product
+        const diffs: Array<{
+            field: string;
+            label: string;
+            oldValue: any;
+            newValue: any;
+            type?: "text" | "badge" | "list" | "images" | "number";
+        }> = [];
+
+        if (existingProduct.name !== product.name) {
+            diffs.push({ field: "name", label: "Product Title", oldValue: existingProduct.name, newValue: product.name, type: "text" });
+        }
+        if (existingProduct.slug !== product.slug) {
+            diffs.push({ field: "slug", label: "Slug / URL Key", oldValue: existingProduct.slug, newValue: product.slug, type: "text" });
+        }
+
+        const oldPrimarySku = existingProduct.variants?.[0]?.sku || (existingProduct as any).listings?.[0]?.sellerSku || null;
+        const newPrimarySku = trimmedSku || product.variants?.[0]?.sku || oldPrimarySku;
+        if (oldPrimarySku !== newPrimarySku && newPrimarySku) {
+            diffs.push({
+                field: "sku",
+                label: "Product SKU",
+                oldValue: oldPrimarySku || "None",
+                newValue: newPrimarySku,
+                type: "text",
+            });
+        }
+
+        if (existingProduct.status !== product.status) {
+            diffs.push({ field: "status", label: "Status", oldValue: existingProduct.status, newValue: product.status, type: "badge" });
+        }
+        if (existingProduct.visibility !== product.visibility) {
+            diffs.push({ field: "visibility", label: "Visibility", oldValue: existingProduct.visibility, newValue: product.visibility, type: "badge" });
+        }
+        if (existingProduct.brandId !== product.brandId) {
+            diffs.push({
+                field: "brand",
+                label: "Brand",
+                oldValue: existingProduct.brand?.name || "None",
+                newValue: product.brand?.name || "None",
+                type: "text",
+            });
+        }
+        if ((existingProduct.shortDescription || "") !== (product.shortDescription || "")) {
+            diffs.push({
+                field: "shortDescription",
+                label: "Short Description",
+                oldValue: existingProduct.shortDescription || "",
+                newValue: product.shortDescription || "",
+                type: "text",
+            });
+        }
+        if ((existingProduct.description || "") !== (product.description || "")) {
+            diffs.push({
+                field: "description",
+                label: "Full Description",
+                oldValue: existingProduct.description ? `${existingProduct.description.slice(0, 80)}...` : "Empty",
+                newValue: product.description ? `${product.description.slice(0, 80)}...` : "Empty",
+                type: "text",
+            });
+        }
+        if ((existingProduct.modelNumber || "") !== (product.modelNumber || "")) {
+            diffs.push({ field: "modelNumber", label: "Model Number", oldValue: existingProduct.modelNumber || "None", newValue: product.modelNumber || "None", type: "text" });
+        }
+        if ((existingProduct.manufacturer || "") !== (product.manufacturer || "")) {
+            diffs.push({ field: "manufacturer", label: "Manufacturer", oldValue: existingProduct.manufacturer || "None", newValue: product.manufacturer || "None", type: "text" });
+        }
+        if ((existingProduct.countryOfOrigin || "") !== (product.countryOfOrigin || "")) {
+            diffs.push({ field: "countryOfOrigin", label: "Country of Origin", oldValue: existingProduct.countryOfOrigin || "None", newValue: product.countryOfOrigin || "None", type: "text" });
+        }
+        if (Number(existingProduct.weight || 0) !== Number(product.weight || 0)) {
+            diffs.push({
+                field: "weight",
+                label: "Weight",
+                oldValue: existingProduct.weight ? `${existingProduct.weight} kg` : "None",
+                newValue: product.weight ? `${product.weight} kg` : "None",
+                type: "number",
+            });
+        }
+
+        // Compare categories
+        const oldCatNames = existingProduct.categories.map((c: any) => c.category?.name || c.categoryId).sort();
+        const newCatNames = product.categories.map((c: any) => c.category?.name || c.categoryId).sort();
+        if (JSON.stringify(oldCatNames) !== JSON.stringify(newCatNames)) {
+            diffs.push({
+                field: "categories",
+                label: "Categories",
+                oldValue: oldCatNames,
+                newValue: newCatNames,
+                type: "list",
+            });
+        }
+
+        // Compare images
+        const oldImgUrls = existingProduct.images.map((img: any) => img.url).sort();
+        const newImgUrls = product.images.map((img: any) => img.url).sort();
+        if (JSON.stringify(oldImgUrls) !== JSON.stringify(newImgUrls) || existingProduct.images.length !== product.images.length) {
+            diffs.push({
+                field: "images",
+                label: "Product Images",
+                oldValue: existingProduct.images.map((img: any) => ({ url: img.url, isPrimary: img.isPrimary, altText: img.altText })),
+                newValue: product.images.map((img: any) => ({ url: img.url, isPrimary: img.isPrimary, altText: img.altText })),
+                type: "images",
+            });
+        }
+
+        // Compare variants
+        const oldVarNames = (existingProduct.variants || []).map((v: any) => v.name).sort();
+        const newVarNames = (product.variants || []).map((v: any) => v.name).sort();
+        if (JSON.stringify(oldVarNames) !== JSON.stringify(newVarNames)) {
+            diffs.push({
+                field: "variants",
+                label: "Product Variants",
+                oldValue: oldVarNames,
+                newValue: newVarNames,
+                type: "list",
+            });
+        }
+
+        // Compare SEO
+        if (seo) {
+            const oldSeo = existingProduct.seo;
+            const newSeo = product.seo;
+            if (
+                (oldSeo?.metaTitle || "") !== (newSeo?.metaTitle || "") ||
+                (oldSeo?.metaDescription || "") !== (newSeo?.metaDescription || "")
+            ) {
+                diffs.push({
+                    field: "seo",
+                    label: "SEO Settings",
+                    oldValue: oldSeo?.metaTitle || "None",
+                    newValue: newSeo?.metaTitle || "None",
+                    type: "text",
+                });
+            }
+        }
+
+        // Calculate next revision number
         const latestRev = await tx.productRevision.findFirst({
             where: { productId: id },
-            orderBy: { revisionNumber: "desc" }
+            orderBy: { revisionNumber: "desc" },
         });
         const nextRevNum = (latestRev?.revisionNumber || 0) + 1;
+
+        // Compute human-readable summary
+        let revSummary = `Catalog update applied (Rev #${nextRevNum})`;
+        if (diffs.length > 0) {
+            const labels = diffs.map((d) => d.label);
+            if (labels.length <= 3) {
+                revSummary = `Updated ${labels.join(", ")}`;
+            } else {
+                revSummary = `Updated ${labels.slice(0, 3).join(", ")} (+${labels.length - 3} more)`;
+            }
+        }
+
+        // Record a Product Revision with rich snapshot & computed changes
         await tx.productRevision.create({
             data: {
                 productId: id,
                 revisionNumber: nextRevNum,
                 status: "PUBLISHED",
                 payload: {
+                    snapshot: {
+                        id: product.id,
+                        name: product.name,
+                        slug: product.slug,
+                        sku: newPrimarySku,
+                        status: product.status,
+                        visibility: product.visibility,
+                        ownershipType: product.ownershipType,
+                        productType: product.productType,
+                        brand: product.brand ? { id: product.brand.id, name: product.brand.name } : null,
+                        shortDescription: product.shortDescription,
+                        description: product.description,
+                        modelNumber: product.modelNumber,
+                        manufacturer: product.manufacturer,
+                        countryOfOrigin: product.countryOfOrigin,
+                        weight: product.weight ? Number(product.weight) : null,
+                        dimensions: {
+                            length: product.length ? Number(product.length) : null,
+                            width: product.width ? Number(product.width) : null,
+                            height: product.height ? Number(product.height) : null,
+                        },
+                        categories: product.categories.map((c: any) => ({
+                            id: c.categoryId,
+                            name: c.category?.name || "Category",
+                        })),
+                        images: product.images.map((img: any) => ({
+                            url: img.url,
+                            altText: img.altText,
+                            isPrimary: img.isPrimary,
+                        })),
+                        variants: product.variants.map((v: any) => ({
+                            id: v.id,
+                            name: v.name,
+                            sku: v.sku,
+                        })),
+                        seo: product.seo ? {
+                            metaTitle: product.seo.metaTitle,
+                            metaDescription: product.seo.metaDescription,
+                            metaKeywords: product.seo.metaKeywords,
+                            canonicalUrl: product.seo.canonicalUrl,
+                        } : null,
+                    },
+                    changes: diffs,
+                    // Preserve direct top-level fields for legacy compatibility
                     name: product.name,
+                    slug: product.slug,
                     status: product.status,
                     visibility: product.visibility,
                     ownershipType: product.ownershipType,
                     brandId: product.brandId,
                 },
-                summary: `Updated product properties and catalogue settings (Rev #${nextRevNum})`,
+                summary: revSummary,
                 createdById: admin.id,
                 reviewedById: admin.id,
                 publishedAt: new Date(),
-            }
+            },
         });
 
         // Record Audit Log

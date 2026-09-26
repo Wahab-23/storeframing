@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, use } from "react";
+import { useState, useEffect, useRef, use, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -38,6 +38,16 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { AdminBadge, AdminModal } from "@/components/admin/AdminUI";
+import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/select";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { CategorySelector } from "@/components/ui/category-selector";
+import { MediaUploader, type MediaImage } from "@/components/ui/media-uploader";
+import { ProductRevisionTimeline } from "@/components/admin/ProductRevisionTimeline";
 import type { BlockNoteEditorRef } from "@/components/blocknote/blocknoteEditor";
 
 const BlockNoteEditor = dynamic(
@@ -64,6 +74,13 @@ interface BrandOption {
 interface CategoryOption {
   id: string;
   name: string;
+  slug?: string;
+  parentId?: string | null;
+  parent?: {
+    id: string;
+    name: string;
+  } | null;
+  children?: CategoryOption[];
 }
 
 interface SellerOption {
@@ -71,11 +88,7 @@ interface SellerOption {
   shopName: string;
 }
 
-interface ProductImg {
-  url: string;
-  altText: string;
-  isPrimary: boolean;
-}
+type ProductImg = MediaImage;
 
 interface VariantItem {
   id?: string;
@@ -140,6 +153,69 @@ const TABS = [
   { id: "marketplace", label: "Seller offers", description: "Ownership and merchant offers", icon: Store },
   { id: "history", label: "History", description: "Revisions and recorded events", icon: History },
 ];
+
+function buildFormSnapshot(data: {
+  name: string;
+  slug: string;
+  sku: string;
+  shortDesc: string;
+  longDesc: string;
+  selectedBrandId: string;
+  selectedCategoryIds: string[];
+  ownershipType: string;
+  ownerSellerId: string;
+  productType: string;
+  status: string;
+  visibility: string;
+  modelNumber: string;
+  manufacturer: string;
+  countryOfOrigin: string;
+  weight: string;
+  length: string;
+  width: string;
+  height: string;
+  images: Array<{ url: string; altText?: string; isPrimary?: boolean }>;
+  variants: Array<{ name: string; sku: string }>;
+  metaTitle: string;
+  metaDescription: string;
+  metaKeywords: string;
+  canonicalUrl: string;
+}): string {
+  return JSON.stringify({
+    name: (data.name || "").trim(),
+    slug: (data.slug || "").trim(),
+    sku: (data.sku || "").trim(),
+    shortDesc: (data.shortDesc || "").trim(),
+    longDesc: (data.longDesc || "").trim(),
+    selectedBrandId: data.selectedBrandId || "",
+    selectedCategoryIds: [...(data.selectedCategoryIds || [])].sort(),
+    ownershipType: data.ownershipType || "PLATFORM",
+    ownerSellerId: data.ownershipType === "SELLER_EXCLUSIVE" ? data.ownerSellerId || "" : "",
+    productType: data.productType || "SIMPLE",
+    status: data.status || "ACTIVE",
+    visibility: data.visibility || "VISIBLE",
+    modelNumber: (data.modelNumber || "").trim(),
+    manufacturer: (data.manufacturer || "").trim(),
+    countryOfOrigin: (data.countryOfOrigin || "").trim(),
+    weight: (data.weight || "").trim(),
+    length: (data.length || "").trim(),
+    width: (data.width || "").trim(),
+    height: (data.height || "").trim(),
+    images: (data.images || []).map((img) => ({
+      url: img.url,
+      altText: (img.altText || "").trim(),
+      isPrimary: Boolean(img.isPrimary),
+    })),
+    variants: (data.variants || []).map((v) => ({
+      name: (v.name || "").trim(),
+      sku: (v.sku || "").trim(),
+    })),
+    metaTitle: (data.metaTitle || "").trim(),
+    metaDescription: (data.metaDescription || "").trim(),
+    metaKeywords: (data.metaKeywords || "").trim(),
+    canonicalUrl: (data.canonicalUrl || "").trim(),
+  });
+}
 
 export default function EditProductPage({ params }: EditProductPageProps) {
   const { id } = use(params);
@@ -212,6 +288,82 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Dirty / Unsaved Changes tracking
+  const [initialSnapshot, setInitialSnapshot] = useState<string | null>(null);
+
+  const currentSnapshot = useMemo(() => {
+    return buildFormSnapshot({
+      name,
+      slug,
+      sku,
+      shortDesc,
+      longDesc,
+      selectedBrandId,
+      selectedCategoryIds,
+      ownershipType,
+      ownerSellerId,
+      productType,
+      status,
+      visibility,
+      modelNumber,
+      manufacturer,
+      countryOfOrigin,
+      weight,
+      length,
+      width,
+      height,
+      images,
+      variants,
+      metaTitle,
+      metaDescription,
+      metaKeywords,
+      canonicalUrl,
+    });
+  }, [
+    name,
+    slug,
+    sku,
+    shortDesc,
+    longDesc,
+    selectedBrandId,
+    selectedCategoryIds,
+    ownershipType,
+    ownerSellerId,
+    productType,
+    status,
+    visibility,
+    modelNumber,
+    manufacturer,
+    countryOfOrigin,
+    weight,
+    length,
+    width,
+    height,
+    images,
+    variants,
+    metaTitle,
+    metaDescription,
+    metaKeywords,
+    canonicalUrl,
+  ]);
+
+  const hasChanges = useMemo(() => {
+    if (!initialSnapshot) return false;
+    return initialSnapshot !== currentSnapshot;
+  }, [initialSnapshot, currentSnapshot]);
+
+  const handleSkuChange = (val: string) => {
+    setSku(val);
+    setVariants((prev) => {
+      if (prev.length <= 1) {
+        const firstName = prev[0]?.name || "Default";
+        const firstId = prev[0]?.id;
+        return [{ ...(firstId ? { id: firstId } : {}), name: firstName, sku: val }];
+      }
+      return prev;
+    });
+  };
+
   // Load Product Data and references
   useEffect(() => {
     setLoading(true);
@@ -219,72 +371,89 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     Promise.all([
       fetch(`/api/admin/products/${id}`).then((r) => r.json()),
       fetch("/api/admin/brands").then((r) => r.json()),
-      fetch("/api/admin/categories?limit=100").then((r) => r.json()),
       fetch("/api/admin/sellers?limit=100").then((r) => r.json()),
     ])
-      .then(([prodRes, brandsRes, catRes, sellersRes]) => {
+      .then(([prodRes, brandsRes, sellersRes]) => {
         if (Array.isArray(brandsRes.data)) setBrands(brandsRes.data);
-        const catList = catRes.data?.categories || catRes.data || [];
-        if (Array.isArray(catList)) setCategories(catList);
         const sellerList = sellersRes.data?.items || sellersRes.data || [];
         if (Array.isArray(sellerList)) setSellers(sellerList);
 
         const p = prodRes.data;
         if (p) {
-          setName(p.name || "");
-          setSlug(p.slug || "");
-          setSku(p.variants?.[0]?.sku || p.listings?.[0]?.sellerSku || `${p.slug}-001`);
-          setShortDesc(p.shortDescription || "");
-          setLongDesc(p.description || "");
-          setSelectedBrandId(p.brandId || "");
-          setSelectedCategoryIds(
-            Array.isArray(p.categories)
-              ? p.categories.map((c: any) => c.categoryId || c.category?.id)
-              : []
-          );
-          setOwnershipType(p.ownershipType || "PLATFORM");
-          setOwnerSellerId(p.ownerSellerId || "");
-          setProductType(p.productType || "SIMPLE");
-          setStatus(p.status || "ACTIVE");
-          setVisibility(p.visibility || "VISIBLE");
-          setModelNumber(p.modelNumber || "");
-          setManufacturer(p.manufacturer || "");
-          setCountryOfOrigin(p.countryOfOrigin || "Pakistan");
-          setWeight(p.weight !== null && p.weight !== undefined ? String(p.weight) : "");
-          setLength(p.length !== null && p.length !== undefined ? String(p.length) : "");
-          setWidth(p.width !== null && p.width !== undefined ? String(p.width) : "");
-          setHeight(p.height !== null && p.height !== undefined ? String(p.height) : "");
-
-          if (Array.isArray(p.images)) {
-            setImages(
-              p.images.map((img: any) => ({
+          const loadedName = p.name || "";
+          const loadedSlug = p.slug || "";
+          const loadedSku = p.variants?.[0]?.sku || p.listings?.[0]?.sellerSku || (p.slug ? `${p.slug}-001` : "");
+          const loadedShortDesc = p.shortDescription || "";
+          const loadedLongDesc = p.description || "";
+          const loadedBrandId = p.brandId || "";
+          const initialCats = Array.isArray(p.categories)
+            ? p.categories.map((c: any) => c.category).filter(Boolean)
+            : [];
+          const initialCatIds = Array.isArray(p.categories)
+            ? p.categories.map((c: any) => c.categoryId || c.category?.id).filter(Boolean)
+            : [];
+          const loadedOwnershipType = p.ownershipType || "PLATFORM";
+          const loadedOwnerSellerId = p.ownerSellerId || "";
+          const loadedProductType = p.productType || "SIMPLE";
+          const loadedStatus = p.status || "ACTIVE";
+          const loadedVisibility = p.visibility || "VISIBLE";
+          const loadedModelNumber = p.modelNumber || "";
+          const loadedManufacturer = p.manufacturer || "";
+          const loadedCountryOfOrigin = p.countryOfOrigin || "Pakistan";
+          const loadedWeight = p.weight !== null && p.weight !== undefined ? String(p.weight) : "";
+          const loadedLength = p.length !== null && p.length !== undefined ? String(p.length) : "";
+          const loadedWidth = p.width !== null && p.width !== undefined ? String(p.width) : "";
+          const loadedHeight = p.height !== null && p.height !== undefined ? String(p.height) : "";
+          const loadedImages = Array.isArray(p.images)
+            ? p.images.map((img: any) => ({
                 url: img.url,
-                altText: img.altText || p.name,
+                altText: img.altText || loadedName,
                 isPrimary: !!img.isPrimary,
               }))
-            );
-          }
+            : [];
+          const loadedVariants = Array.isArray(p.variants) && p.variants.length > 0
+            ? p.variants.map((v: any) => ({
+                id: v.id,
+                name: v.name,
+                sku: v.sku,
+              }))
+            : [{ name: "Default", sku: loadedSku }];
+          const loadedMetaTitle = p.seo?.metaTitle || "";
+          const loadedMetaDescription = p.seo?.metaDescription || "";
+          const loadedMetaKeywords = p.seo?.metaKeywords || "";
+          const loadedCanonicalUrl = p.seo?.canonicalUrl || "";
+
+          setName(loadedName);
+          setSlug(loadedSlug);
+          setSku(loadedSku);
+          setShortDesc(loadedShortDesc);
+          setLongDesc(loadedLongDesc);
+          setSelectedBrandId(loadedBrandId);
+          setCategories(initialCats);
+          setSelectedCategoryIds(initialCatIds);
+          setOwnershipType(loadedOwnershipType);
+          setOwnerSellerId(loadedOwnerSellerId);
+          setProductType(loadedProductType);
+          setStatus(loadedStatus);
+          setVisibility(loadedVisibility);
+          setModelNumber(loadedModelNumber);
+          setManufacturer(loadedManufacturer);
+          setCountryOfOrigin(loadedCountryOfOrigin);
+          setWeight(loadedWeight);
+          setLength(loadedLength);
+          setWidth(loadedWidth);
+          setHeight(loadedHeight);
+          setImages(loadedImages);
 
           if (p.listings && p.listings.length > 0) {
             setListings(p.listings);
           }
 
-          if (Array.isArray(p.variants) && p.variants.length > 0) {
-            setVariants(
-              p.variants.map((v: any) => ({
-                id: v.id,
-                name: v.name,
-                sku: v.sku,
-              }))
-            );
-          }
-
-          if (p.seo) {
-            setMetaTitle(p.seo.metaTitle || "");
-            setMetaDescription(p.seo.metaDescription || "");
-            setMetaKeywords(p.seo.metaKeywords || "");
-            setCanonicalUrl(p.seo.canonicalUrl || "");
-          }
+          setVariants(loadedVariants);
+          setMetaTitle(loadedMetaTitle);
+          setMetaDescription(loadedMetaDescription);
+          setMetaKeywords(loadedMetaKeywords);
+          setCanonicalUrl(loadedCanonicalUrl);
 
           if (Array.isArray(p.productRevisions)) {
             setRevisions(p.productRevisions);
@@ -293,6 +462,36 @@ export default function EditProductPage({ params }: EditProductPageProps) {
           if (Array.isArray(p.auditLogs)) {
             setAuditLogs(p.auditLogs);
           }
+
+          setInitialSnapshot(
+            buildFormSnapshot({
+              name: loadedName,
+              slug: loadedSlug,
+              sku: loadedSku,
+              shortDesc: loadedShortDesc,
+              longDesc: loadedLongDesc,
+              selectedBrandId: loadedBrandId,
+              selectedCategoryIds: initialCatIds,
+              ownershipType: loadedOwnershipType,
+              ownerSellerId: loadedOwnerSellerId,
+              productType: loadedProductType,
+              status: loadedStatus,
+              visibility: loadedVisibility,
+              modelNumber: loadedModelNumber,
+              manufacturer: loadedManufacturer,
+              countryOfOrigin: loadedCountryOfOrigin,
+              weight: loadedWeight,
+              length: loadedLength,
+              width: loadedWidth,
+              height: loadedHeight,
+              images: loadedImages,
+              variants: loadedVariants,
+              metaTitle: loadedMetaTitle,
+              metaDescription: loadedMetaDescription,
+              metaKeywords: loadedMetaKeywords,
+              canonicalUrl: loadedCanonicalUrl,
+            })
+          );
         }
       })
       .catch((err) => {
@@ -439,9 +638,17 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     }
 
     try {
+      const payloadVariants =
+        variants.length > 0
+          ? variants.map((v) => ({ name: v.name, sku: v.sku }))
+          : sku.trim()
+          ? [{ name: "Default", sku: sku.trim() }]
+          : [];
+
       const payload = {
         name: name.trim(),
         slug: slug.trim(),
+        sku: sku.trim(),
         shortDescription: shortDescription.trim() || null,
         description: description.trim() || null,
         brandId: selectedBrandId || null,
@@ -465,10 +672,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
           metaKeywords: metaKeywords.trim() || null,
           canonicalUrl: canonicalUrl.trim() || null,
         },
-        variants: variants.map((v) => ({
-          name: v.name,
-          sku: v.sku,
-        })),
+        variants: payloadVariants,
       };
 
       const res = await fetch(`/api/admin/products/${id}`, {
@@ -483,6 +687,37 @@ export default function EditProductPage({ params }: EditProductPageProps) {
       }
 
       setSuccessMsg("Product catalogue record updated successfully.");
+
+      // Reset baseline snapshot so Save button is disabled until next edit
+      setInitialSnapshot(
+        buildFormSnapshot({
+          name: name.trim(),
+          slug: slug.trim(),
+          sku: sku.trim(),
+          shortDesc: shortDescription,
+          longDesc: description,
+          selectedBrandId,
+          selectedCategoryIds,
+          ownershipType,
+          ownerSellerId: ownershipType === "SELLER_EXCLUSIVE" ? ownerSellerId || "" : "",
+          productType,
+          status,
+          visibility,
+          modelNumber: modelNumber.trim(),
+          manufacturer: manufacturer.trim(),
+          countryOfOrigin: countryOfOrigin.trim(),
+          weight: weight.trim(),
+          length: length.trim(),
+          width: width.trim(),
+          height: height.trim(),
+          images,
+          variants: payloadVariants,
+          metaTitle: metaTitle.trim(),
+          metaDescription: metaDescription.trim(),
+          metaKeywords: metaKeywords.trim(),
+          canonicalUrl: canonicalUrl.trim(),
+        })
+      );
 
       // Refresh product revisions and audit logs
       fetch(`/api/admin/products/${id}`)
@@ -562,34 +797,59 @@ export default function EditProductPage({ params }: EditProductPageProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
+            {hasChanges ? (
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-sunflower-100/10 text-sunflower-100 border border-sunflower-100/25">
+                <span className="w-1.5 h-1.5 rounded-full bg-sunflower-100 animate-pulse" />
+                Unsaved changes
+              </span>
+            ) : (
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-white-chalk-100/40">
+                <Check className="w-3 h-3 text-emerald-400" />
+                All changes saved
+              </span>
+            )}
+
+            <Button
               type="button"
+              variant="destructive"
+              size="sm"
               onClick={() => setDeleteModalOpen(true)}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold text-cadmium-red-200 hover:bg-cadmium-red-100/15 border border-cadmium-red-100/20 transition cursor-pointer flex items-center gap-1.5"
             >
               <Trash2 className="w-3.5 h-3.5" />
               Delete / Archive
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => handleSave(true)}
-              disabled={saving}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-matt-black-200 text-white-chalk-100 hover:bg-matt-black-300 border border-white-chalk-100/10 transition disabled:opacity-40 cursor-pointer flex items-center gap-1.5"
+              disabled={saving || !hasChanges}
+              className={cn(
+                "transition",
+                !hasChanges && "opacity-40 cursor-not-allowed hover:bg-transparent text-white-chalk-100/40"
+              )}
+              title={hasChanges ? "Save and remain on this edit page" : "No changes to save"}
             >
               <Save className="w-3.5 h-3.5" />
               {saving ? "Saving..." : "Save & Continue"}
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
+              variant="default"
+              size="sm"
               onClick={() => handleSave(false)}
-              disabled={saving}
-              className="px-5 py-2 rounded-xl text-xs font-bold bg-sunflower-100 text-matt-black-100 hover:bg-sunflower-200 transition disabled:opacity-40 cursor-pointer shadow-lg shadow-sunflower-100/20 flex items-center gap-1.5"
+              disabled={saving || !hasChanges}
+              className={cn(
+                "transition",
+                !hasChanges && "opacity-40 cursor-not-allowed hover:bg-sunflower-100"
+              )}
+              title={hasChanges ? "Save and return to catalogue" : "No changes to save"}
             >
               <Check className="w-3.5 h-3.5" />
               {saving ? "Saving..." : "Save Product"}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -623,7 +883,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
       />
 
       {/* Magento 2 Style Studio: Left Sidebar Vertical Tabs + Right Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 pt-4">
         {/* Left Column: Navigation Sidebar */}
         <nav aria-label="Product sections" className="lg:col-span-1">
           <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-2.5 shadow-xl space-y-1 sticky top-24">
@@ -640,11 +900,10 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
                   aria-current={isActive ? "step" : undefined}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-left cursor-pointer ${
-                    isActive
-                      ? "bg-sunflower-100 text-matt-black-100 font-bold shadow-md shadow-sunflower-100/10"
-                      : "text-white-chalk-100/70 hover:text-white-chalk-100 hover:bg-white-chalk-100/5"
-                  }`}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-left cursor-pointer ${isActive
+                    ? "bg-sunflower-100 text-matt-black-100 font-bold shadow-md shadow-sunflower-100/10"
+                    : "text-white-chalk-100/70 hover:text-white-chalk-100 hover:bg-white-chalk-100/5"
+                    }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <Icon className="w-4 h-4 shrink-0" />
@@ -657,27 +916,24 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                   </div>
                   {tab.id === "images" && images.length > 0 && (
                     <span
-                      className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
-                        isActive ? "bg-matt-black-100 text-white-chalk-100" : "bg-white-chalk-100/10 text-white-chalk-100/60"
-                      }`}
+                      className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${isActive ? "bg-matt-black-100 text-white-chalk-100" : "bg-white-chalk-100/10 text-white-chalk-100/60"
+                        }`}
                     >
                       {images.length}
                     </span>
                   )}
                   {tab.id === "marketplace" && listings.length > 0 && (
                     <span
-                      className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
-                        isActive ? "bg-matt-black-100 text-white-chalk-100" : "bg-sunflower-100/20 text-sunflower-100"
-                      }`}
+                      className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${isActive ? "bg-matt-black-100 text-white-chalk-100" : "bg-sunflower-100/20 text-sunflower-100"
+                        }`}
                     >
                       {listings.length}
                     </span>
                   )}
                   {tab.id === "history" && revisions.length > 0 && (
                     <span
-                      className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
-                        isActive ? "bg-matt-black-100 text-white-chalk-100" : "bg-munsell-blue-100/20 text-munsell-blue-100"
-                      }`}
+                      className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${isActive ? "bg-matt-black-100 text-white-chalk-100" : "bg-munsell-blue-100/20 text-munsell-blue-100"
+                        }`}
                     >
                       v{revisions[0]?.revisionNumber || 1}
                     </span>
@@ -693,274 +949,279 @@ export default function EditProductPage({ params }: EditProductPageProps) {
           {/* TAB 1: GENERAL */}
           {activeTab === "general" && (
             <div className="space-y-6">
-              <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl space-y-4">
-                <div className="flex items-center gap-2 border-b border-white-chalk-100/10 pb-3">
-                  <Package className="w-4 h-4 text-sunflower-100" />
-                  <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                    Product Identification & Attributes
-                  </h3>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Product Name / Title *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Sony WH-1000XM5 Wireless Headphones"
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
-                  </div>
-
+              {/* Card 1: Product Identification & Basics */}
+              <Card>
+                <CardHeader className="flex flex-row items-center gap-2.5 space-y-0 pb-4">
+                  <Package className="w-4 h-4 text-sunflower-100 shrink-0" />
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      SKU prefix for generated variants (optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={sku}
-                      onChange={(e) => setSku(e.target.value)}
-                      placeholder="e.g. SONY-WH1000XM5"
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
-                    />
-                    <p className="mt-1 text-[10px] text-white-chalk-100/40">
-                      Used to suggest SKUs when you generate variants. Changing this does not edit existing variant or seller offer SKUs.
-                    </p>
+                    <CardTitle>Product Identification</CardTitle>
+                    <CardDescription>
+                      Master catalog title, manufacturer brand, and storefront URL key
+                    </CardDescription>
                   </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <Label htmlFor="product-name">
+                        Product Name / Title *
+                      </Label>
+                      <Input
+                        id="product-name"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="e.g. Sony WH-1000XM5 Wireless Headphones"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      URL Key / Slug *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={slug}
-                      onChange={(e) => setSlug(e.target.value)}
-                      placeholder="e.g. sony-wh-1000xm5-wireless-headphones"
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
-                    />
-                  </div>
-                </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="product-brand">
+                        Brand / Manufacturer
+                      </Label>
+                      <Select
+                        id="product-brand"
+                        value={selectedBrandId}
+                        onChange={(e) => setSelectedBrandId(e.target.value)}
+                      >
+                        <option value="">No Brand (Generic / Platform)</option>
+                        {brands.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Brand / Manufacturer
-                    </label>
-                    <select
-                      value={selectedBrandId}
-                      onChange={(e) => setSelectedBrandId(e.target.value)}
-                      className="w-full bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-sunflower-100/50 cursor-pointer"
-                    >
-                      <option value="">No Brand (Generic / Platform)</option>
-                      {brands.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="product-slug">
+                        URL Key / Slug *
+                      </Label>
+                      <Input
+                        id="product-slug"
+                        required
+                        value={slug}
+                        onChange={(e) => setSlug(e.target.value)}
+                        placeholder="e.g. sony-wh-1000xm5-wireless-headphones"
+                        className="font-mono"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Categories ({selectedCategoryIds.length} Selected)
-                    </label>
-                    <div className="max-h-36 overflow-y-auto bg-matt-black-200/40 border border-white-chalk-100/10 rounded-xl p-2.5 space-y-1">
-                      {categories.length === 0 ? (
-                        <p className="text-[11px] text-white-chalk-100/40 p-1">No categories configured.</p>
-                      ) : (
-                        categories.map((c) => (
-                          <label
-                            key={c.id}
-                            className="flex items-center gap-2 p-1 rounded hover:bg-white-chalk-100/5 text-xs text-white-chalk-100 cursor-pointer select-none"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedCategoryIds.includes(c.id)}
-                              onChange={() => toggleCategory(c.id)}
-                              className="rounded border-white-chalk-100/20 text-sunflower-100 accent-sunflower-100 cursor-pointer"
-                            />
-                            <span>{c.name}</span>
-                          </label>
-                        ))
-                      )}
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <Label htmlFor="product-sku">
+                        Product Master SKU
+                      </Label>
+                      <Input
+                        id="product-sku"
+                        value={sku}
+                        onChange={(e) => handleSkuChange(e.target.value)}
+                        placeholder="e.g. SONY-WH1000XM5"
+                        className="font-mono font-semibold"
+                      />
+                      <p className="text-[10px] text-white-chalk-100/40">
+                        Primary inventory SKU for this product. Updates the catalog record and syncs with product variants.
+                      </p>
                     </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
-              {/* Status & Governance Card */}
-              <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl space-y-4">
-                <div className="flex items-center gap-2 border-b border-white-chalk-100/10 pb-3">
-                  <Sliders className="w-4 h-4 text-sunflower-100" />
-                  <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                    Product Governance & Visibility
-                  </h3>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Card 2: Taxonomy & Category Placement (Interactive search & tree) */}
+              <Card>
+                <CardHeader className="flex flex-row items-center gap-2.5 space-y-0 pb-4">
+                  <Layers className="w-4 h-4 text-sunflower-100 shrink-0" />
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Catalog Status
-                    </label>
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                      className="w-full bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-sunflower-100/50 cursor-pointer"
-                    >
-                      <option value="ACTIVE">ACTIVE (Published)</option>
-                      <option value="DRAFT">DRAFT (Under Review)</option>
-                      <option value="INACTIVE">INACTIVE (Hidden)</option>
-                      <option value="ARCHIVED">ARCHIVED</option>
-                    </select>
+                    <CardTitle>Taxonomy & Category Placement</CardTitle>
+                    <CardDescription>
+                      Assign this product into parent and nested departmental categories with type-to-search
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <CategorySelector
+                    selectedIds={selectedCategoryIds}
+                    onChange={setSelectedCategoryIds}
+                    categories={categories}
+                    label="Assigned Categories"
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Card 3: Governance & Storefront Visibility */}
+              <Card>
+                <CardHeader className="flex flex-row items-center gap-2.5 space-y-0 pb-4">
+                  <Sliders className="w-4 h-4 text-sunflower-100 shrink-0" />
+                  <div>
+                    <CardTitle>Product Governance & Visibility</CardTitle>
+                    <CardDescription>
+                      Control catalog lifecycle state, storefront discoverability, and product architecture
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="catalog-status">
+                        Catalog Status
+                      </Label>
+                      <Select
+                        id="catalog-status"
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                      >
+                        <option value="ACTIVE">ACTIVE (Published)</option>
+                        <option value="DRAFT">DRAFT (Under Review)</option>
+                        <option value="INACTIVE">INACTIVE (Hidden)</option>
+                        <option value="ARCHIVED">ARCHIVED</option>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="storefront-visibility">
+                        Storefront Visibility
+                      </Label>
+                      <Select
+                        id="storefront-visibility"
+                        value={visibility}
+                        onChange={(e) => setVisibility(e.target.value)}
+                      >
+                        <option value="VISIBLE">Catalog, Search</option>
+                        <option value="CATALOG_ONLY">Catalog Only</option>
+                        <option value="SEARCH_ONLY">Search Only</option>
+                        <option value="HIDDEN">Not Visible Individually</option>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="product-type">
+                        Product Type
+                      </Label>
+                      <Select
+                        id="product-type"
+                        value={productType}
+                        onChange={(e) => setProductType(e.target.value)}
+                      >
+                        <option value="SIMPLE">Simple Product</option>
+                        <option value="CONFIGURABLE">Configurable Product</option>
+                        <option value="BUNDLE">Bundle Product</option>
+                        <option value="VIRTUAL">Virtual Product</option>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Card 4: Identification & Logistics Dimensions */}
+              <Card>
+                <CardHeader className="flex flex-row items-center gap-2.5 space-y-0 pb-4">
+                  <Ruler className="w-4 h-4 text-sunflower-100 shrink-0" />
+                  <div>
+                    <CardTitle>Identification & Package Dimensions</CardTitle>
+                    <CardDescription>
+                      Manufacturer part numbers and shipping parcel logistics specifications
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="model-number">
+                        Model Number (MPN)
+                      </Label>
+                      <Input
+                        id="model-number"
+                        type="text"
+                        value={modelNumber}
+                        onChange={(e) => setModelNumber(e.target.value)}
+                        placeholder="e.g. WH1000XM5/B"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="manufacturer">
+                        Manufacturer
+                      </Label>
+                      <Input
+                        id="manufacturer"
+                        type="text"
+                        value={manufacturer}
+                        onChange={(e) => setManufacturer(e.target.value)}
+                        placeholder="e.g. Sony Corporation"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="country-origin">
+                        Country of Origin
+                      </Label>
+                      <Input
+                        id="country-origin"
+                        type="text"
+                        value={countryOfOrigin}
+                        onChange={(e) => setCountryOfOrigin(e.target.value)}
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Storefront Visibility
-                    </label>
-                    <select
-                      value={visibility}
-                      onChange={(e) => setVisibility(e.target.value)}
-                      className="w-full bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-sunflower-100/50 cursor-pointer"
-                    >
-                      <option value="VISIBLE">Catalog, Search</option>
-                      <option value="CATALOG_ONLY">Catalog Only</option>
-                      <option value="SEARCH_ONLY">Search Only</option>
-                      <option value="HIDDEN">Not Visible Individually</option>
-                    </select>
-                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="weight">
+                        Weight (kg)
+                      </Label>
+                      <Input
+                        id="weight"
+                        type="number"
+                        step="0.01"
+                        value={weight}
+                        onChange={(e) => setWeight(e.target.value)}
+                        placeholder="0.25"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Product Type
-                    </label>
-                    <select
-                      value={productType}
-                      onChange={(e) => setProductType(e.target.value)}
-                      className="w-full bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-sunflower-100/50 cursor-pointer"
-                    >
-                      <option value="SIMPLE">Simple Product</option>
-                      <option value="CONFIGURABLE">Configurable Product</option>
-                      <option value="BUNDLE">Bundle Product</option>
-                      <option value="VIRTUAL">Virtual Product</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="length">
+                        Length (cm)
+                      </Label>
+                      <Input
+                        id="length"
+                        type="number"
+                        step="0.1"
+                        value={length}
+                        onChange={(e) => setLength(e.target.value)}
+                        placeholder="22.0"
+                      />
+                    </div>
 
-              {/* Identification & Logistics Card */}
-              <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl space-y-4">
-                <div className="flex items-center gap-2 border-b border-white-chalk-100/10 pb-3">
-                  <Ruler className="w-4 h-4 text-sunflower-100" />
-                  <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                    Identification & Package Dimensions
-                  </h3>
-                </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="width">
+                        Width (cm)
+                      </Label>
+                      <Input
+                        id="width"
+                        type="number"
+                        step="0.1"
+                        value={width}
+                        onChange={(e) => setWidth(e.target.value)}
+                        placeholder="18.5"
+                      />
+                    </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Model Number (MPN)
-                    </label>
-                    <input
-                      type="text"
-                      value={modelNumber}
-                      onChange={(e) => setModelNumber(e.target.value)}
-                      placeholder="e.g. WH1000XM5/B"
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
+                    <div className="space-y-1.5">
+                      <Label htmlFor="height">
+                        Height (cm)
+                      </Label>
+                      <Input
+                        id="height"
+                        type="number"
+                        step="0.1"
+                        value={height}
+                        onChange={(e) => setHeight(e.target.value)}
+                        placeholder="7.5"
+                      />
+                    </div>
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Manufacturer
-                    </label>
-                    <input
-                      type="text"
-                      value={manufacturer}
-                      onChange={(e) => setManufacturer(e.target.value)}
-                      placeholder="e.g. Sony Corporation"
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Country of Origin
-                    </label>
-                    <input
-                      type="text"
-                      value={countryOfOrigin}
-                      onChange={(e) => setCountryOfOrigin(e.target.value)}
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Weight (kg)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={weight}
-                      onChange={(e) => setWeight(e.target.value)}
-                      placeholder="0.25"
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Length (cm)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={length}
-                      onChange={(e) => setLength(e.target.value)}
-                      placeholder="22.0"
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Width (cm)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={width}
-                      onChange={(e) => setWidth(e.target.value)}
-                      placeholder="18.5"
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
-                      Height (cm)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={height}
-                      onChange={(e) => setHeight(e.target.value)}
-                      placeholder="7.5"
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
@@ -971,12 +1232,9 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-sunflower-100" />
                   <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                    Content & Rich Storytelling (BlockNote Black)
+                    Content & Rich Storytelling
                   </h3>
                 </div>
-                <span className="text-[10px] font-mono text-sunflower-100/80 bg-sunflower-100/10 px-2.5 py-0.5 rounded border border-sunflower-100/20">
-                  BlockNote Dark Mode Active
-                </span>
               </div>
 
               {/* Short Description */}
@@ -1023,103 +1281,14 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
           {/* TAB 3: IMAGES & MEDIA */}
           {activeTab === "images" && (
-            <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl space-y-4">
-              <div className="flex items-center justify-between border-b border-white-chalk-100/10 pb-3">
-                <div className="flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-sunflower-100" />
-                  <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                    Product Images & Media Gallery ({images.length})
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingImage}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-sunflower-100 text-matt-black-100 hover:bg-sunflower-200 transition flex items-center gap-1.5 cursor-pointer shadow"
-                >
-                  <UploadCloud className="w-3.5 h-3.5" />
-                  {uploadingImage ? "Uploading..." : "Upload New Image"}
-                </button>
-              </div>
-
-              {images.length === 0 ? (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="rounded-2xl border-2 border-dashed border-white-chalk-100/15 hover:border-sunflower-100/50 bg-matt-black-200/30 p-10 flex flex-col items-center justify-center gap-2 text-center cursor-pointer transition group"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-sunflower-100/10 border border-sunflower-100/20 flex items-center justify-center text-sunflower-100 group-hover:scale-105 transition">
-                    <UploadCloud className="w-6 h-6" />
-                  </div>
-                  <p className="text-xs font-bold text-white-chalk-100 group-hover:text-sunflower-100 transition">
-                    Drag & Drop or Click to Upload Images
-                  </p>
-                  <p className="text-[10px] text-white-chalk-100/40">
-                    PNG, JPG, WEBP formats up to 15MB • Minimum 800×800 recommended
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3.5">
-                  {images.map((img, idx) => (
-                    <div
-                      key={idx}
-                      className={`group relative rounded-xl border p-1 bg-matt-black-200/60 overflow-hidden ${
-                        img.isPrimary
-                          ? "border-sunflower-100 shadow-md shadow-sunflower-100/10"
-                          : "border-white-chalk-100/15 hover:border-white-chalk-100/30"
-                      }`}
-                    >
-                      <div className="aspect-square rounded-lg overflow-hidden bg-matt-black-300 flex items-center justify-center relative">
-                        <img
-                          src={img.url}
-                          alt={img.altText}
-                          className="w-full h-full object-cover"
-                        />
-
-                        {img.isPrimary && (
-                          <span className="absolute top-1.5 left-1.5 bg-sunflower-100 text-matt-black-100 text-[9px] font-bold px-1.5 py-0.5 rounded shadow">
-                            Base / Primary
-                          </span>
-                        )}
-
-                        <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1.5">
-                          {!img.isPrimary && (
-                            <button
-                              type="button"
-                              onClick={() => setPrimaryImage(idx)}
-                              className="p-1.5 rounded-lg bg-sunflower-100 text-matt-black-100 text-[10px] font-bold hover:bg-sunflower-200 cursor-pointer"
-                              title="Set as Base Image"
-                            >
-                              <Star className="w-3.5 h-3.5 fill-current" />
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => removeImage(idx)}
-                            className="p-1.5 rounded-lg bg-cadmium-red-100 text-white-chalk-100 text-[10px] font-bold hover:bg-cadmium-red-200 cursor-pointer"
-                            title="Remove Image"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="p-1">
-                        <input
-                          type="text"
-                          value={img.altText}
-                          onChange={(e) => {
-                            const newAlt = e.target.value;
-                            setImages((prev) =>
-                              prev.map((item, i) => (i === idx ? { ...item, altText: newAlt } : item))
-                            );
-                          }}
-                          placeholder="Alt tag..."
-                          className="w-full bg-transparent text-[10px] text-white-chalk-100/70 border-b border-white-chalk-100/10 focus:border-sunflower-100/50 outline-none px-1 py-0.5"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl">
+              <MediaUploader
+                images={images}
+                onChange={(newImgs) => setImages(newImgs)}
+                productName={name}
+                folder="products"
+                maxFiles={24}
+              />
             </div>
           )}
 
@@ -1172,37 +1341,35 @@ export default function EditProductPage({ params }: EditProductPageProps) {
               <div className="p-4 rounded-xl bg-matt-black-200/40 border border-white-chalk-100/10 space-y-3">
                 <p className="text-xs font-bold text-white-chalk-100">Generate Variant Matrix</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[11px] text-white-chalk-100/60 mb-1">
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px]">
                       Option Attribute
-                    </label>
-                    <input
+                    </Label>
+                    <Input
                       type="text"
                       value={variantOptionName}
                       onChange={(e) => setVariantOptionName(e.target.value)}
                       placeholder="e.g. Size, Color, Storage"
-                      className="w-full bg-matt-black-200/80 border border-white-chalk-100/10 rounded-lg px-3 py-2 text-xs text-white-chalk-100 outline-none"
                     />
                   </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-[11px] text-white-chalk-100/60 mb-1">
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <Label className="text-[11px]">
                       Values (Comma separated)
-                    </label>
+                    </Label>
                     <div className="flex gap-2">
-                      <input
+                      <Input
                         type="text"
                         value={variantValuesInput}
                         onChange={(e) => setVariantValuesInput(e.target.value)}
                         placeholder="e.g. 64GB, 128GB, 256GB"
-                        className="w-full bg-matt-black-200/80 border border-white-chalk-100/10 rounded-lg px-3 py-2 text-xs text-white-chalk-100 outline-none"
                       />
-                      <button
+                      <Button
                         type="button"
                         onClick={handleGenerateVariants}
-                        className="px-4 py-2 rounded-lg text-xs font-bold bg-sunflower-100 text-matt-black-100 hover:bg-sunflower-200 transition shrink-0 cursor-pointer"
+                        className="shrink-0"
                       >
                         Generate Matrix
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -1248,6 +1415,9 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                                 setVariants((prev) =>
                                   prev.map((item, i) => (i === idx ? { ...item, sku: val } : item))
                                 );
+                                if (idx === 0) {
+                                  setSku(val);
+                                }
                               }}
                               className="bg-transparent font-mono text-white-chalk-100/80 border-b border-white-chalk-100/10 focus:border-sunflower-100/50 outline-none px-1 py-0.5"
                             />
@@ -1299,66 +1469,68 @@ export default function EditProductPage({ params }: EditProductPageProps) {
               </div>
 
               <div className="space-y-4 pt-2">
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="seo-meta-title">
                       Meta Title
-                    </label>
+                    </Label>
                     <span className="text-[10px] text-white-chalk-100/40">
                       {metaTitle.length}/60 characters recommended
                     </span>
                   </div>
-                  <input
+                  <Input
+                    id="seo-meta-title"
                     type="text"
                     value={metaTitle}
                     onChange={(e) => setMetaTitle(e.target.value)}
                     placeholder="Buy Sony WH-1000XM5 in Pakistan - Best Price Guaranteed"
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
                   />
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="seo-meta-desc">
                       Meta Description
-                    </label>
+                    </Label>
                     <span className="text-[10px] text-white-chalk-100/40">
                       {metaDescription.length}/160 characters recommended
                     </span>
                   </div>
                   <textarea
+                    id="seo-meta-desc"
                     rows={3}
                     value={metaDescription}
                     onChange={(e) => setMetaDescription(e.target.value)}
                     placeholder="Order genuine Sony wireless noise-cancelling headphones. Free express delivery, official warranty, and flexible payment options across Pakistan."
-                    className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none resize-none"
+                    className="flex w-full rounded-xl border border-white-chalk-100/15 bg-matt-black-200/50 px-3.5 py-2 text-xs text-white-chalk-100 shadow-sm transition-colors placeholder:text-white-chalk-100/35 focus-visible:outline-none focus-visible:border-sunflower-100/60 focus-visible:ring-1 focus-visible:ring-sunflower-100/40 resize-none"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="seo-keywords">
                       Meta Keywords
-                    </label>
-                    <input
+                    </Label>
+                    <Input
+                      id="seo-keywords"
                       type="text"
                       value={metaKeywords}
                       onChange={(e) => setMetaKeywords(e.target.value)}
                       placeholder="headphones, noise cancelling, sony audio"
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 outline-none"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="seo-canonical">
                       Canonical URL
-                    </label>
-                    <input
+                    </Label>
+                    <Input
+                      id="seo-canonical"
                       type="url"
                       value={canonicalUrl}
                       onChange={(e) => setCanonicalUrl(e.target.value)}
                       placeholder="https://storeframing.com/products/sony-wh-1000xm5"
-                      className="w-full bg-matt-black-200/50 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-xl px-3.5 py-2.5 text-xs text-white-chalk-100 font-mono outline-none"
+                      className="font-mono"
                     />
                   </div>
                 </div>
@@ -1379,19 +1551,19 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ownership-scope">
                       Ownership Scope
-                    </label>
-                    <select
+                    </Label>
+                    <Select
+                      id="ownership-scope"
                       value={ownershipType}
                       onChange={(e) => setOwnershipType(e.target.value)}
-                      className="w-full bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-sunflower-100/50 cursor-pointer"
                     >
                       <option value="PLATFORM">PLATFORM (Shared Multi-Vendor Master Product)</option>
                       <option value="SELLER_EXCLUSIVE">SELLER_EXCLUSIVE (Private to One Vendor)</option>
-                    </select>
-                    <p className="text-[10px] text-white-chalk-100/40 mt-1">
+                    </Select>
+                    <p className="text-[10px] text-white-chalk-100/40">
                       {ownershipType === "PLATFORM"
                         ? "Any verified merchant can list their offer and inventory against this master product."
                         : "Only the designated vendor can manage and sell this product."}
@@ -1399,14 +1571,14 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                   </div>
 
                   {ownershipType === "SELLER_EXCLUSIVE" && (
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-white-chalk-100/60 mb-1.5">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="seller-owner">
                         Designated Seller Owner *
-                      </label>
-                      <select
+                      </Label>
+                      <Select
+                        id="seller-owner"
                         value={ownerSellerId}
                         onChange={(e) => setOwnerSellerId(e.target.value)}
-                        className="w-full bg-matt-black-200/60 border border-white-chalk-100/10 text-white-chalk-100 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-sunflower-100/50 cursor-pointer"
                       >
                         <option value="">Select a vendor...</option>
                         {sellers.map((s) => (
@@ -1414,7 +1586,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                             {s.shopName}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
                   )}
                 </div>
@@ -1525,54 +1697,34 @@ export default function EditProductPage({ params }: EditProductPageProps) {
           {/* TAB 8: HISTORY & AUDIT TRAIL */}
           {activeTab === "history" && (
             <div className="space-y-6">
-              {/* Product Revisions Timeline */}
-              <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl space-y-4">
-                <div className="flex items-center justify-between border-b border-white-chalk-100/10 pb-3">
-                  <div className="flex items-center gap-2">
-                    <History className="w-4 h-4 text-sunflower-100" />
-                    <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                      Product Revision Snapshots ({revisions.length})
-                    </h3>
-                  </div>
-                  <span className="text-[10px] text-white-chalk-100/40">
-                    Stored revision snapshots for this product
-                  </span>
-                </div>
-
-                {revisions.length === 0 ? (
-                  <p className="text-xs text-white-chalk-100/40 py-4 text-center">
-                    No revision snapshots recorded yet.
-                  </p>
-                ) : (
-                  <div className="relative border-l border-white-chalk-100/10 ml-4 space-y-6 py-2">
-                    {revisions.map((rev) => (
-                      <div key={rev.id} className="relative pl-6">
-                        <div className="absolute -left-2 top-1.5 w-4 h-4 rounded-full bg-sunflower-100 border-2 border-matt-black-100 shadow" />
-                        <div className="bg-matt-black-200/50 border border-white-chalk-100/10 rounded-xl p-3.5 space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-white-chalk-100">
-                              Revision #{rev.revisionNumber}
-                            </span>
-                            <span className="text-[10px] font-mono text-white-chalk-100/40">
-                              {new Date(rev.createdAt).toLocaleString()}
-                            </span>
-                          </div>
-                          <p className="text-xs text-white-chalk-100/80">
-                            {rev.summary || "Catalog update applied."}
-                          </p>
-                          <div className="flex items-center gap-2 text-[10px] text-white-chalk-100/50 pt-1">
-                            <User className="w-3 h-3" />
-                            <span>
-                              {rev.createdBy
-                                ? `${rev.createdBy.firstName || ""} ${rev.createdBy.lastName || ""} (${rev.createdBy.email})`
-                                : "Admin Staff"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              {/* Product Revisions Timeline with Rich Diff & Snapshots */}
+              <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl">
+                <ProductRevisionTimeline
+                  revisions={revisions}
+                  currentProduct={{
+                    id,
+                    name,
+                    slug,
+                    status,
+                    visibility,
+                    ownershipType,
+                    productType,
+                    brandId: selectedBrandId,
+                    brandName: brands.find((b) => b.id === selectedBrandId)?.name,
+                    shortDescription: shortDesc,
+                    description: longDesc,
+                    modelNumber,
+                    manufacturer,
+                    countryOfOrigin,
+                    weight,
+                    length,
+                    width,
+                    height,
+                    categories: selectedCategoryIds,
+                    images,
+                    variants,
+                  }}
+                />
               </div>
 
               {/* Security Audit Logs with Expandable Diff */}

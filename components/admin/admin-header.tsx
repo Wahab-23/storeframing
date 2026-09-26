@@ -159,12 +159,17 @@ export function AdminHeader({
                             </div>
                             <div className="pt-1 border-t border-slate-100 dark:border-slate-800">
                                 <button
-                                    onClick={() => {
+                                    onClick={async () => {
+                                        try {
+                                            await fetch("/api/auth/logout", { method: "POST" });
+                                        } catch (e) {
+                                            console.error("Logout error:", e);
+                                        }
                                         document.cookie =
                                             "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
                                         window.location.href = "/admin/login";
                                     }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg"
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer"
                                 >
                                     <LogOut className="w-4 h-4" />
                                     Sign Out

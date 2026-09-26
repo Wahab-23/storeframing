@@ -566,8 +566,8 @@ export default function EditProductSubmissionPage({ params }: EditSubmissionPage
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left ${isActive
-                      ? "bg-sunflower-100 text-matt-black-100 shadow-md shadow-sunflower-100/10 font-bold"
-                      : "text-white-chalk-100/70 hover:text-white-chalk-100 hover:bg-white-chalk-100/5"
+                    ? "bg-sunflower-100 text-matt-black-100 shadow-md shadow-sunflower-100/10 font-bold"
+                    : "text-white-chalk-100/70 hover:text-white-chalk-100 hover:bg-white-chalk-100/5"
                     }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? "text-matt-black-100" : "text-white-chalk-100/50"}`} />
@@ -579,7 +579,7 @@ export default function EditProductSubmissionPage({ params }: EditSubmissionPage
 
           {/* Proposal Summary Card */}
           <div className="rounded-2xl border border-white-chalk-100/10 bg-matt-black-100/40 p-4 space-y-3 text-xs">
-            <h4 className="font-bold text-white-chalk-100 uppercase tracking-wider text-[10px] text-white-chalk-100/40">
+            <h4 className="font-bold text-white-chalk-100/40 uppercase tracking-wider text-[10px]">
               Audit & Review Details
             </h4>
             <div className="space-y-1.5 text-white-chalk-100/70">
@@ -740,8 +740,8 @@ export default function EditProductSubmissionPage({ params }: EditSubmissionPage
                           <label
                             key={c.id}
                             className={`flex items-center gap-2 p-1.5 rounded-lg text-xs cursor-pointer transition ${isChecked
-                                ? "bg-sunflower-100/10 text-sunflower-100"
-                                : "text-white-chalk-100/70 hover:bg-white-chalk-100/5"
+                              ? "bg-sunflower-100/10 text-sunflower-100"
+                              : "text-white-chalk-100/70 hover:bg-white-chalk-100/5"
                               }`}
                           >
                             <input
@@ -880,8 +880,8 @@ export default function EditProductSubmissionPage({ params }: EditSubmissionPage
                       type="button"
                       onClick={() => setCondition(cond)}
                       className={`px-3.5 py-2.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${condition === cond
-                          ? "bg-sunflower-100/10 text-sunflower-100 border-sunflower-100/40 shadow-sm"
-                          : "bg-matt-black-200/40 text-white-chalk-100/60 border-white-chalk-100/10 hover:text-white-chalk-100"
+                        ? "bg-sunflower-100/10 text-sunflower-100 border-sunflower-100/40 shadow-sm"
+                        : "bg-matt-black-200/40 text-white-chalk-100/60 border-white-chalk-100/10 hover:text-white-chalk-100"
                         }`}
                     >
                       {cond.replace("_", " ")}
@@ -1153,8 +1153,8 @@ export default function EditProductSubmissionPage({ params }: EditSubmissionPage
                       type="button"
                       onClick={() => setStatus(s.id)}
                       className={`px-3 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${status === s.id
-                          ? "bg-sunflower-100/10 text-sunflower-100 border-sunflower-100/40"
-                          : "bg-matt-black-200/40 text-white-chalk-100/60 border-white-chalk-100/10 hover:text-white-chalk-100"
+                        ? "bg-sunflower-100/10 text-sunflower-100 border-sunflower-100/40"
+                        : "bg-matt-black-200/40 text-white-chalk-100/60 border-white-chalk-100/10 hover:text-white-chalk-100"
                         }`}
                     >
                       {s.label}

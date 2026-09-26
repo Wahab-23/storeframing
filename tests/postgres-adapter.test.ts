@@ -10,7 +10,7 @@ test("PostgreSQL adapter sends a valid startup packet without serializing Pool i
     const server = createServer((socket) => {
         sockets.add(socket);
         socket.once("data", (packet) => {
-            packets.push(packet);
+            packets.push(Buffer.isBuffer(packet) ? packet : Buffer.from(packet));
             // Stop after the startup handshake: this test needs no database.
             socket.end();
         });

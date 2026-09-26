@@ -44,7 +44,15 @@ const categoryBaseSchema = z.object({
 export const adminCategoryListQuerySchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),
-    parentId: z.string().cuid2().nullable().optional(),
+    parentId: z
+        .string()
+        .optional()
+        .transform((val) => {
+            if (val === undefined) return undefined;
+            if (val === "null" || val === "root" || val === "") return null;
+            return val;
+        })
+        .nullable(),
     isActive: z.enum(["true", "false"]).optional(),
     search: z.string().trim().min(1).max(255).optional(),
 });
