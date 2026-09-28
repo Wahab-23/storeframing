@@ -62,6 +62,10 @@ interface Product {
       slug: string;
     };
   }>;
+  images?: Array<{
+    url: string;
+    isPrimary?: boolean;
+  }>;
 }
 
 export default function AdminProductsPage() {
@@ -265,20 +269,31 @@ export default function AdminProductsPage() {
           const brandName = product.brand?.name || "No Brand";
           const categoryName =
             product.categories?.[0]?.category.name || "Uncategorized";
-          const listingsCount = product.listings?.length || 0;
+          const primaryImg = product.images?.find((i) => i.isPrimary)?.url || product.images?.[0]?.url;
 
           return (
             <tr
               key={product.id}
               className="hover:bg-white-chalk-100/5 transition-colors border-t border-white-chalk-100/5"
             >
-              {/* Name & Slug */}
-              <td className="px-5 py-3.5 max-w-xs">
-                <div className="font-semibold text-white-chalk-100 truncate">
-                  {product.name}
-                </div>
-                <div className="text-[11px] text-white-chalk-100/40 font-mono truncate">
-                  /{product.slug}
+              {/* Thumbnail & Name & Slug */}
+              <td className="px-5 py-3.5 max-w-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-matt-black-300 border border-white-chalk-100/10 overflow-hidden shrink-0 flex items-center justify-center shadow-inner">
+                    {primaryImg ? (
+                      <img src={primaryImg} alt={product.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Package className="w-4 h-4 text-white-chalk-100/30" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-white-chalk-100 truncate">
+                      {product.name}
+                    </div>
+                    <div className="text-[11px] text-white-chalk-100/40 font-mono truncate">
+                      /{product.slug}
+                    </div>
+                  </div>
                 </div>
               </td>
 
@@ -313,12 +328,19 @@ export default function AdminProductsPage() {
 
               {/* Listings */}
               <td className="px-5 py-3.5">
-                <span className="font-semibold text-white-chalk-100">
-                  {listingsCount}
-                </span>{" "}
-                <span className="text-white-chalk-100/40 text-[11px]">
-                  seller{listingsCount === 1 ? "" : "s"}
-                </span>
+                {(() => {
+                  const sellerCount = product.listings?.length || 0;
+                  return (
+                    <>
+                      <span className="font-semibold text-white-chalk-100">
+                        {sellerCount}
+                      </span>{" "}
+                      <span className="text-white-chalk-100/40 text-[11px]">
+                        seller{sellerCount === 1 ? "" : "s"}
+                      </span>
+                    </>
+                  );
+                })()}
               </td>
 
               {/* Status */}

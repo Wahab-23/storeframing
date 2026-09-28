@@ -51,45 +51,18 @@ const BlockNoteEditor = dynamic(
   }
 );
 
-interface BrandOption {
-  id: string;
-  name: string;
-}
-
-interface CategoryOption {
-  id: string;
-  name: string;
-  slug?: string;
-  parentId?: string | null;
-  parent?: {
-    id: string;
-    name: string;
-  } | null;
-  children?: CategoryOption[];
-}
-
-interface SellerOption {
-  id: string;
-  shopName: string;
-}
+import { ConfigurableOptionsStudio } from "@/components/admin/product/ConfigurableOptionsStudio";
+import { ProductFormTabsNav } from "@/components/admin/product/ProductFormTabsNav";
+import { ProductSeoCard } from "@/components/admin/product/ProductSeoCard";
+import type {
+  BrandOption,
+  CategoryOption,
+  SellerOption,
+  ConfigurableOptionState,
+  VariantItem,
+} from "@/components/admin/product/ProductTypes";
 
 type ProductImg = MediaImage;
-
-interface VariantItem {
-  id: string;
-  name: string;
-  sku: string;
-}
-
-const TABS = [
-  { id: "general", label: "Basics", description: "Name, brand, type, and categories", icon: Package },
-  { id: "content", label: "Description", description: "Product copy and details", icon: FileText },
-  { id: "images", label: "Photos & media", description: "Images and alt text", icon: ImageIcon },
-  { id: "pricing", label: "Pricing & stock", description: "Seller offer setup", icon: DollarSign },
-  { id: "configurations", label: "Variants", description: "Options and variant SKUs", icon: Boxes },
-  { id: "seo", label: "Search preview", description: "Search title and metadata", icon: Globe },
-  { id: "marketplace", label: "Seller access", description: "Ownership and visibility", icon: Store },
-];
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -128,10 +101,11 @@ export default function NewProductPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Variants
+  // Variants & Configurable Options
   const [variantOptionName, setVariantOptionName] = useState("Size");
   const [variantValuesInput, setVariantValuesInput] = useState("Small, Medium, Large");
   const [variants, setVariants] = useState<VariantItem[]>([]);
+  const [configurableOptions, setConfigurableOptions] = useState<ConfigurableOptionState[]>([]);
 
   // Tab 4: Pricing & Stock (Initial Offer creation)
   const [createInitialOffer, setCreateInitialOffer] = useState(false);
@@ -363,6 +337,7 @@ export default function NewProductPage() {
             canonicalUrl: canonicalUrl.trim() || undefined,
           },
           variants: productType === "CONFIGURABLE" ? variants : undefined,
+          configurableOptions: productType === "CONFIGURABLE" ? configurableOptions : undefined,
           initialOffer: createInitialOffer ? {
             sellerId: offerSellerId,
             price: Number(offerPrice),
@@ -474,48 +449,17 @@ export default function NewProductPage() {
       {/* Main Studio Grid: Left Tabs Sidebar + Right Active Content */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         {/* Left Vertical Tabs (Sticky) */}
-        <nav aria-label="Product sections" className="lg:col-span-1 bg-matt-black-100 border border-white-chalk-100/10 rounded-2xl p-2.5 space-y-1 lg:sticky lg:top-20 shadow-xl shadow-black/20">
-          <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white-chalk-100/40">
-            Product Settings Studio
-          </div>
-          {TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            const isCompulsoryTab = tab.id === "general";
-            const isTabIncomplete = tab.id === "general" && (!name.trim() || !slug.trim() || selectedCategoryIds.length === 0);
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                aria-current={isActive ? "step" : undefined}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left transition cursor-pointer ${
-                  isActive
-                    ? "bg-sunflower-100/15 text-sunflower-100 border border-sunflower-100/30"
-                    : "text-white-chalk-100/70 hover:text-white-chalk-100 hover:bg-white-chalk-100/5 border border-transparent"
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-sunflower-100" : "text-white-chalk-100/40"}`} />
-                  <span className="min-w-0">
-                    <span className="block text-xs font-semibold flex items-center gap-1">
-                      {tab.label}
-                      {isCompulsoryTab && <span className="text-cadmium-red-200 font-bold">*</span>}
-                    </span>
-                    <span className={`block mt-0.5 text-[10px] font-normal ${isActive ? "text-sunflower-100/70" : "text-white-chalk-100/40"}`}>
-                      {tab.description}
-                    </span>
-                  </span>
-                </div>
-                {isTabIncomplete && (
-                  <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20 shrink-0 ml-1">
-                    Required
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
+        <div className="lg:col-span-1 bg-matt-black-100 border border-white-chalk-100/10 rounded-2xl p-3 lg:sticky lg:top-20 shadow-xl shadow-black/20">
+          <ProductFormTabsNav
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            showHistoryTab={false}
+            imagesCount={images.length}
+            listingsCount={0}
+            hasNameError={!name.trim()}
+            hasCategoryError={selectedCategoryIds.length === 0}
+          />
+        </div>
 
         {/* Right Active Panel Content */}
         <div className="lg:col-span-3 space-y-6">
@@ -1039,220 +983,34 @@ export default function NewProductPage() {
 
           {/* TAB 5: CONFIGURATIONS / VARIANTS */}
           {activeTab === "configurations" && (
-            <div className="bg-matt-black-100 border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl shadow-black/20 space-y-5">
-              <div className="flex items-center justify-between border-b border-white-chalk-100/10 pb-3">
-                <div className="flex items-center gap-2">
-                  <Boxes className="w-4 h-4 text-sunflower-100" />
-                  <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                    Configurable Product Variations Matrix
-                  </h3>
-                </div>
-                <span className="text-[10px] text-white-chalk-100/40">
-                  {variants.length} child variants generated
-                </span>
-              </div>
-
-              {productType !== "CONFIGURABLE" ? (
-                <div className="text-center py-10 space-y-2 border border-dashed border-white-chalk-100/15 rounded-xl bg-matt-black-200/20">
-                  <Boxes className="w-10 h-10 text-white-chalk-100/20 mx-auto" />
-                  <p className="text-xs font-semibold text-white-chalk-100">
-                    Product type is currently set to &quot;{productType}&quot;.
-                  </p>
-                  <p className="text-[11px] text-white-chalk-100/40 max-w-sm mx-auto">
-                    To generate multiple SKUs based on attributes like Color or Size, change Product Type to <strong>CONFIGURABLE</strong> in General Settings.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProductType("CONFIGURABLE");
-                      handleGenerateVariants();
-                    }}
-                    className="mt-2 px-4 py-2 rounded-xl text-xs font-bold bg-sunflower-100 text-matt-black-100 hover:bg-sunflower-200 transition cursor-pointer"
-                  >
-                    Switch to Configurable Product
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-xl bg-matt-black-200/40 border border-white-chalk-100/10">
-                    <div className="space-y-1.5">
-                      <Label className="text-[10px]">
-                        Attribute Name
-                      </Label>
-                      <Input
-                        type="text"
-                        placeholder="e.g. Size or Color"
-                        value={variantOptionName}
-                        onChange={(e) => setVariantOptionName(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[10px]">
-                        Options (Comma separated)
-                      </Label>
-                      <Input
-                        type="text"
-                        placeholder="Small, Medium, Large"
-                        value={variantValuesInput}
-                        onChange={(e) => setVariantValuesInput(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={handleGenerateVariants}
-                        className="w-full text-sunflower-100 border border-sunflower-100/30 hover:bg-sunflower-100/15"
-                      >
-                        Generate Matrix
-                      </Button>
-                    </div>
-                  </div>
-
-                  {variants.length > 0 && (
-                    <div className="overflow-x-auto border border-white-chalk-100/10 rounded-xl">
-                      <table className="w-full text-xs text-left">
-                        <thead className="border-b border-white-chalk-100/10 bg-matt-black-200/60 text-white-chalk-100/40 uppercase text-[10px]">
-                          <tr>
-                            <th className="py-2.5 px-3">Variant</th>
-                            <th className="py-2.5 px-3">Child SKU</th>
-                            <th className="py-2.5 px-3 text-right">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white-chalk-100/5">
-                          {variants.map((v, idx) => (
-                            <tr key={v.id} className="hover:bg-white-chalk-100/5">
-                              <td className="py-2 px-3 font-semibold text-white-chalk-100">
-                                {v.name}
-                              </td>
-                              <td className="py-2 px-3">
-                                <input
-                                  type="text"
-                                  value={v.sku}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setVariants((prev) =>
-                                      prev.map((item, i) => (i === idx ? { ...item, sku: val } : item))
-                                    );
-                                  }}
-                                  className="w-full bg-matt-black-300 border border-white-chalk-100/10 rounded px-2 py-1 text-xs text-white-chalk-100 font-mono outline-none"
-                                />
-                              </td>
-                              <td className="py-2 px-3 text-right">
-                                <button
-                                  type="button"
-                                  onClick={() => setVariants((prev) => prev.filter((_, i) => i !== idx))}
-                                  className="p-1 rounded text-cadmium-red-200 hover:bg-cadmium-red-100/10 cursor-pointer"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
+            <div className="bg-matt-black-100 border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl shadow-black/20">
+              <ConfigurableOptionsStudio
+                options={configurableOptions}
+                setOptions={setConfigurableOptions}
+                variants={variants}
+                setVariants={setVariants}
+                onOptionChangeProductType={setProductType}
+                onSuccessMsg={(msg) => console.log(msg)}
+                onErrorMsg={(msg) => setErrorMsg(msg)}
+              />
             </div>
           )}
 
           {/* TAB 6: SEO & GOOGLE PREVIEW */}
           {activeTab === "seo" && (
-            <div className="bg-matt-black-100 border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl shadow-black/20 space-y-5">
-              <div className="flex items-center gap-2 border-b border-white-chalk-100/10 pb-3">
-                <Globe className="w-4 h-4 text-munsell-blue-100" />
-                <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                  Search Engine Optimization (SEO)
-                </h3>
-              </div>
-
-              {/* Live Google Search Preview Card */}
-              <div className="p-4 rounded-xl bg-matt-black-300 border border-white-chalk-100/10 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-white-chalk-100/40">
-                  Google Search Snippet Preview
-                </span>
-                <p className="text-[11px] text-[#202124] dark:text-[#bdc1c6] truncate">
-                  https://storeframing.pk/products/{slug || "url-key"}
-                </p>
-                <h4 className="text-sm font-semibold text-[#1a0dab] dark:text-[#8ab4f8] hover:underline cursor-pointer">
-                  {metaTitle || name || "Product Page Title"}
-                </h4>
-                <p className="text-xs text-[#4d5156] dark:text-[#bdc1c6] line-clamp-2">
-                  {metaDescription ||
-                    "Shop this product online at StoreFraming. Genuine warranty, fast delivery, and trusted merchants."}
-                </p>
-              </div>
-
-              <div className="space-y-4 pt-2">
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="new-seo-title">
-                      Meta Title Tag
-                    </Label>
-                    <span className="text-[11px] font-mono text-white-chalk-100/40">
-                      {metaTitle.length} / 60 characters
-                    </span>
-                  </div>
-                  <Input
-                    id="new-seo-title"
-                    type="text"
-                    placeholder="e.g. Sony WH-1000XM5 Headphones | StoreFraming"
-                    value={metaTitle}
-                    onChange={(e) => setMetaTitle(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="new-seo-desc">
-                      Meta Description
-                    </Label>
-                    <span className="text-[11px] font-mono text-white-chalk-100/40">
-                      {metaDescription.length} / 160 characters
-                    </span>
-                  </div>
-                  <textarea
-                    id="new-seo-desc"
-                    rows={3}
-                    placeholder="Compelling storefront summary for search engine results..."
-                    value={metaDescription}
-                    onChange={(e) => setMetaDescription(e.target.value)}
-                    className="flex w-full rounded-xl border border-white-chalk-100/15 bg-matt-black-200/50 px-3.5 py-2 text-xs text-white-chalk-100 shadow-sm transition-colors placeholder:text-white-chalk-100/35 focus-visible:outline-none focus-visible:border-sunflower-100/60 focus-visible:ring-1 focus-visible:ring-sunflower-100/40 resize-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="new-seo-keywords">
-                      Meta Keywords
-                    </Label>
-                    <Input
-                      id="new-seo-keywords"
-                      type="text"
-                      placeholder="wireless, noise cancelling, sony, headphones"
-                      value={metaKeywords}
-                      onChange={(e) => setMetaKeywords(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="new-seo-canonical">
-                      Canonical URL Override (Optional)
-                    </Label>
-                    <Input
-                      id="new-seo-canonical"
-                      type="url"
-                      placeholder="https://storeframing.pk/products/..."
-                      value={canonicalUrl}
-                      onChange={(e) => setCanonicalUrl(e.target.value)}
-                      className="font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ProductSeoCard
+              metaTitle={metaTitle}
+              setMetaTitle={setMetaTitle}
+              metaDescription={metaDescription}
+              setMetaDescription={setMetaDescription}
+              metaKeywords={metaKeywords}
+              setMetaKeywords={setMetaKeywords}
+              canonicalUrl={canonicalUrl}
+              setCanonicalUrl={setCanonicalUrl}
+              productName={name}
+              slug={slug}
+              shortDesc={shortDesc}
+            />
           )}
 
           {/* TAB 7: MARKETPLACE & OFFERS */}

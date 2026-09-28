@@ -60,6 +60,7 @@ enum ProductVisibility {
 enum ProductType {
   SIMPLE
   VARIABLE
+  CONFIGURABLE
   DIGITAL
   VIRTUAL
   SERVICE
@@ -115,6 +116,14 @@ enum AttributeType {
   SELECT
   MULTI_SELECT
   COLOR
+}
+
+enum OptionSelectorType {
+  COLOR_SWATCH
+  IMAGE_SWATCH
+  BUTTON_TILES
+  DROPDOWN
+  RADIO_CARDS
 }
 
 enum AttributeScope {
@@ -915,6 +924,8 @@ model Product {
 
   variants ProductVariant[]
 
+  configurableOptions ProductConfigurableOption[]
+
   attributes ProductAttributeValue[]
 
   listings SellerListing[]
@@ -1026,12 +1037,19 @@ model ProductImage {
   sortOrder Int     @default(0)
   isPrimary Boolean @default(false)
 
+  optionValueId String?
+  variantId     String?
+
   createdAt DateTime @default(now())
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product     Product                         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  optionValue ProductConfigurableOptionValue? @relation(fields: [optionValueId], references: [id], onDelete: SetNull)
+  variant     ProductVariant?                 @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
   @@index([productId])
   @@index([productId, isPrimary])
+  @@index([optionValueId])
+  @@index([variantId])
 }
 
 // ============================================================
@@ -1136,8 +1154,9 @@ model ProductVariant {
   id        String @id @default(cuid())
   productId String
 
-  name String
-  sku  String @unique
+  name       String
+  sku        String   @unique
+  priceDelta Decimal? @db.Decimal(18, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1146,6 +1165,10 @@ model ProductVariant {
 
   attributes VariantAttributeValue[]
 
+  configurableValues ProductVariantConfigurableValue[]
+
+  images ProductImage[]
+
   listings SellerListingVariant[]
 
   cartItems CartItem[]
@@ -1153,6 +1176,63 @@ model ProductVariant {
   orderItems OrderItem[]
 
   @@index([productId])
+}
+
+// ============================================================
+// CONFIGURABLE OPTIONS & SWATCHES
+// ============================================================
+
+model ProductConfigurableOption {
+  id        String @id @default(cuid())
+  productId String
+
+  name       String
+  code       String
+  type       OptionSelectorType @default(BUTTON_TILES)
+  position   Int                @default(0)
+  isRequired Boolean            @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product                          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  values  ProductConfigurableOptionValue[]
+
+  @@index([productId])
+  @@index([productId, position])
+}
+
+model ProductConfigurableOptionValue {
+  id       String @id @default(cuid())
+  optionId String
+
+  label       String
+  value       String
+  swatchValue String?
+  priceDelta  Decimal? @db.Decimal(18, 2)
+  position    Int      @default(0)
+  isDefault   Boolean  @default(false)
+
+  option ProductConfigurableOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  images ProductImage[]
+  variants ProductVariantConfigurableValue[]
+
+  @@index([optionId])
+  @@index([optionId, position])
+}
+
+model ProductVariantConfigurableValue {
+  id            String @id @default(cuid())
+  variantId     String
+  optionValueId String
+
+  variant     ProductVariant                 @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  optionValue ProductConfigurableOptionValue @relation(fields: [optionValueId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, optionValueId])
+  @@index([variantId])
+  @@index([optionValueId])
 }
 
 model VariantAttributeValue {

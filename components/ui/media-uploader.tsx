@@ -24,6 +24,8 @@ export interface MediaImage {
   altText: string;
   isPrimary?: boolean;
   sortOrder?: number;
+  optionValueId?: string | null;
+  variantId?: string | null;
 }
 
 interface PendingUpload {
@@ -35,6 +37,13 @@ interface PendingUpload {
   error?: string;
 }
 
+export interface OptionValueItem {
+  id: string;
+  label: string;
+  optionName?: string;
+  swatchValue?: string | null;
+}
+
 export interface MediaUploaderProps {
   images: MediaImage[];
   onChange: (images: MediaImage[]) => void;
@@ -44,6 +53,7 @@ export interface MediaUploaderProps {
   disabled?: boolean;
   className?: string;
   productName?: string;
+  optionValues?: OptionValueItem[];
 }
 
 export function MediaUploader({
@@ -55,6 +65,7 @@ export function MediaUploader({
   disabled = false,
   className,
   productName = "",
+  optionValues = [],
 }: MediaUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -219,6 +230,14 @@ export function MediaUploader({
     if (disabled) return;
     const updated = images.map((img, idx) =>
       idx === index ? { ...img, altText: text } : img
+    );
+    onChange(updated);
+  };
+
+  const updateOptionValueTag = (index: number, optionValueId: string | null) => {
+    if (disabled) return;
+    const updated = images.map((img, idx) =>
+      idx === index ? { ...img, optionValueId } : img
     );
     onChange(updated);
   };
@@ -471,8 +490,8 @@ export function MediaUploader({
                   </div>
                 </div>
 
-                {/* Alt text field for SEO */}
-                <div>
+                {/* Alt text field for SEO & Option Tagging */}
+                <div className="space-y-1">
                   <input
                     type="text"
                     placeholder="SEO Alt tag / label..."
@@ -481,6 +500,21 @@ export function MediaUploader({
                     onChange={(e) => updateAltText(idx, e.target.value)}
                     className="w-full bg-matt-black-300/80 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-md px-2 py-1 text-[11px] text-white-chalk-100 outline-none transition"
                   />
+                  {optionValues.length > 0 && (
+                    <select
+                      value={img.optionValueId || ""}
+                      disabled={disabled}
+                      onChange={(e) => updateOptionValueTag(idx, e.target.value || null)}
+                      className="w-full bg-matt-black-300/80 border border-white-chalk-100/10 focus:border-sunflower-100/50 rounded-md px-2 py-1 text-[10px] text-sunflower-100 font-medium outline-none transition cursor-pointer"
+                    >
+                      <option value="">🎨 Tag Option Swatch...</option>
+                      {optionValues.map((ov) => (
+                        <option key={ov.id} value={ov.id}>
+                          {ov.optionName ? `${ov.optionName}: ` : ""}{ov.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
             ))}

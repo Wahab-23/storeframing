@@ -33,7 +33,19 @@ export const GET = withApiHandler(async (request: NextRequest, context: RouteCon
                 }
             },
             images: {
+                include: {
+                    optionValue: true,
+                    variant: true,
+                },
                 orderBy: { sortOrder: "asc" }
+            },
+            configurableOptions: {
+                include: {
+                    values: {
+                        orderBy: { position: "asc" }
+                    }
+                },
+                orderBy: { position: "asc" }
             },
             ownerSeller: {
                 select: {
@@ -60,6 +72,15 @@ export const GET = withApiHandler(async (request: NextRequest, context: RouteCon
                         include: {
                             attribute: true,
                             attributeValue: true,
+                        }
+                    },
+                    configurableValues: {
+                        include: {
+                            optionValue: {
+                                include: {
+                                    option: true
+                                }
+                            }
                         }
                     }
                 }
@@ -163,6 +184,7 @@ export const PATCH = withApiHandler(async (request: NextRequest, context: RouteC
         images,
         seo,
         variants,
+        configurableOptions,
     } = body;
 
     const trimmedSku = typeof sku === "string" ? sku.trim() : undefined;
@@ -237,7 +259,40 @@ export const PATCH = withApiHandler(async (request: NextRequest, context: RouteC
                         altText: img.altText || (name || existingProduct.name),
                         isPrimary: typeof img === "object" ? !!img.isPrimary : idx === 0,
                         sortOrder: idx,
+                        optionValueId: typeof img === "object" ? img.optionValueId || null : null,
+                        variantId: typeof img === "object" ? img.variantId || null : null,
                     }))
+                });
+            }
+        }
+
+        // Handle Configurable Options update if array provided
+        if (Array.isArray(configurableOptions)) {
+            await tx.productConfigurableOption.deleteMany({
+                where: { productId: id }
+            });
+
+            for (let i = 0; i < configurableOptions.length; i++) {
+                const opt = configurableOptions[i];
+                await tx.productConfigurableOption.create({
+                    data: {
+                        productId: id,
+                        name: opt.name,
+                        code: opt.code || opt.name.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+                        type: opt.type || "BUTTON_TILES",
+                        position: i,
+                        isRequired: opt.isRequired !== undefined ? Boolean(opt.isRequired) : true,
+                        values: {
+                            create: (opt.values || []).map((val: any, vIdx: number) => ({
+                                label: val.label,
+                                value: val.value || val.label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+                                swatchValue: val.swatchValue || null,
+                                priceDelta: val.priceDelta !== undefined && val.priceDelta !== null && val.priceDelta !== "" ? Number(val.priceDelta) : null,
+                                position: vIdx,
+                                isDefault: Boolean(val.isDefault),
+                            }))
+                        }
+                    }
                 });
             }
         }

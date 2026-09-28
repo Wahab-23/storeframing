@@ -46,9 +46,21 @@ import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { CategorySelector } from "@/components/ui/category-selector";
-import { MediaUploader, type MediaImage } from "@/components/ui/media-uploader";
 import { ProductRevisionTimeline } from "@/components/admin/ProductRevisionTimeline";
 import type { BlockNoteEditorRef } from "@/components/blocknote/blocknoteEditor";
+import { MediaUploader, type MediaImage } from "@/components/ui/media-uploader";
+import { ConfigurableOptionsStudio } from "@/components/admin/product/ConfigurableOptionsStudio";
+import { ProductFormTabsNav } from "@/components/admin/product/ProductFormTabsNav";
+import { ProductSeoCard } from "@/components/admin/product/ProductSeoCard";
+import type {
+  BrandOption,
+  CategoryOption,
+  SellerOption,
+  ConfigurableOptionState,
+  VariantItem,
+  SellerListingItem,
+  RevisionItem,
+} from "@/components/admin/product/ProductTypes";
 
 const BlockNoteEditor = dynamic(
   () => import("@/components/blocknote/blocknoteEditor"),
@@ -66,72 +78,7 @@ interface EditProductPageProps {
   params: Promise<{ id: string }>;
 }
 
-interface BrandOption {
-  id: string;
-  name: string;
-}
-
-interface CategoryOption {
-  id: string;
-  name: string;
-  slug?: string;
-  parentId?: string | null;
-  parent?: {
-    id: string;
-    name: string;
-  } | null;
-  children?: CategoryOption[];
-}
-
-interface SellerOption {
-  id: string;
-  shopName: string;
-}
-
 type ProductImg = MediaImage;
-
-interface VariantItem {
-  id?: string;
-  name: string;
-  sku: string;
-}
-
-interface SellerListingItem {
-  id: string;
-  price: string | number;
-  compareAtPrice?: string | number | null;
-  costPrice?: string | number | null;
-  sellerSku?: string | null;
-  condition?: string;
-  warrantyTitle?: string | null;
-  warrantyDescription?: string | null;
-  description?: string | null;
-  status: string;
-  seller: {
-    id: string;
-    shopName: string;
-    slug: string;
-  };
-  inventory?: {
-    quantity: number;
-  } | null;
-}
-
-interface RevisionItem {
-  id: string;
-  revisionNumber: number;
-  status: string;
-  summary: string | null;
-  payload: any;
-  createdAt: string;
-  publishedAt: string | null;
-  createdBy?: {
-    id: string;
-    firstName: string | null;
-    lastName: string | null;
-    email: string;
-  } | null;
-}
 
 interface AuditLogItem {
   id: string;
@@ -179,7 +126,7 @@ function buildFormSnapshot(data: {
   length: string;
   width: string;
   height: string;
-  images: Array<{ url: string; altText?: string; isPrimary?: boolean }>;
+  images: MediaImage[];
   variants: Array<{ name: string; sku: string }>;
   metaTitle: string;
   metaDescription: string;
@@ -262,10 +209,41 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Variants
+  // Variants & Configurable Options Studio
   const [variantOptionName, setVariantOptionName] = useState("Size");
   const [variantValuesInput, setVariantValuesInput] = useState("Small, Medium, Large");
   const [variants, setVariants] = useState<VariantItem[]>([]);
+  const [configurableOptions, setConfigurableOptions] = useState<Array<{
+    id?: string;
+    name: string;
+    code: string;
+    type: "COLOR_SWATCH" | "IMAGE_SWATCH" | "BUTTON_TILES" | "DROPDOWN" | "RADIO_CARDS";
+    isRequired?: boolean;
+    values: Array<{
+      id?: string;
+      label: string;
+      value: string;
+      swatchValue?: string;
+      priceDelta?: string | number;
+      isDefault?: boolean;
+    }>;
+  }>>([]);
+  const [generatingMatrix, setGeneratingMatrix] = useState(false);
+
+  const allOptionValues = useMemo(() => {
+    const list: Array<{ id: string; label: string; optionName: string; swatchValue?: string | null }> = [];
+    configurableOptions.forEach((opt) => {
+      opt.values.forEach((v) => {
+        list.push({
+          id: v.id || `${opt.code}_${v.value}`,
+          label: v.label,
+          optionName: opt.name,
+          swatchValue: v.swatchValue,
+        });
+      });
+    });
+    return list;
+  }, [configurableOptions]);
 
   // Tab 6: SEO
   const [metaTitle, setMetaTitle] = useState("");
@@ -426,9 +404,12 @@ export default function EditProductPage({ params }: EditProductPageProps) {
           const loadedHeight = p.height !== null && p.height !== undefined ? String(p.height) : "";
           const loadedImages = Array.isArray(p.images)
             ? p.images.map((img: any) => ({
+                id: img.id,
                 url: img.url,
                 altText: img.altText || loadedName,
                 isPrimary: !!img.isPrimary,
+                optionValueId: img.optionValueId || null,
+                variantId: img.variantId || null,
               }))
             : [];
           const loadedVariants = Array.isArray(p.variants) && p.variants.length > 0
@@ -436,8 +417,28 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                 id: v.id,
                 name: v.name,
                 sku: v.sku,
+                priceDelta: v.priceDelta,
               }))
             : [{ name: "Default", sku: loadedSku }];
+          const loadedOptions = Array.isArray(p.configurableOptions)
+            ? p.configurableOptions.map((opt: any) => ({
+                id: opt.id,
+                name: opt.name,
+                code: opt.code,
+                type: opt.type || "BUTTON_TILES",
+                isRequired: opt.isRequired !== undefined ? Boolean(opt.isRequired) : true,
+                values: Array.isArray(opt.values)
+                  ? opt.values.map((val: any) => ({
+                      id: val.id,
+                      label: val.label,
+                      value: val.value,
+                      swatchValue: val.swatchValue || "",
+                      priceDelta: val.priceDelta !== null && val.priceDelta !== undefined ? Number(val.priceDelta) : "",
+                    }))
+                  : [],
+              }))
+            : [];
+          setConfigurableOptions(loadedOptions);
           const loadedMetaTitle = p.seo?.metaTitle || "";
           const loadedMetaDescription = p.seo?.metaDescription || "";
           const loadedMetaKeywords = p.seo?.metaKeywords || "";
@@ -818,13 +819,14 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         width: width ? Number(width) : null,
         height: height ? Number(height) : null,
         images,
+        configurableOptions,
+        variants: payloadVariants,
         seo: {
           metaTitle: metaTitle.trim() || null,
           metaDescription: metaDescription.trim() || null,
           metaKeywords: metaKeywords.trim() || null,
           canonicalUrl: canonicalUrl.trim() || null,
         },
-        variants: payloadVariants,
       };
 
       const res = await fetch(`/api/admin/products/${id}`, {
@@ -1036,64 +1038,20 @@ export default function EditProductPage({ params }: EditProductPageProps) {
       {/* Magento 2 Style Studio: Left Sidebar Vertical Tabs + Right Content Area */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 pt-4">
         {/* Left Column: Navigation Sidebar */}
-        <nav aria-label="Product sections" className="lg:col-span-1">
-          <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-2.5 shadow-xl space-y-1 sticky top-24">
-            <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white-chalk-100/40 border-b border-white-chalk-100/10 mb-1">
-              Product Studio Tabs
-            </div>
-
-            {TABS.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  aria-current={isActive ? "step" : undefined}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition text-left cursor-pointer ${isActive
-                    ? "bg-sunflower-100 text-matt-black-100 font-bold shadow-md shadow-sunflower-100/10"
-                    : "text-white-chalk-100/70 hover:text-white-chalk-100 hover:bg-white-chalk-100/5"
-                    }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span>
-                      <span className="block text-xs font-semibold">{tab.label}</span>
-                      <span className={`block mt-0.5 text-[10px] font-normal ${isActive ? "text-matt-black-100/70" : "text-white-chalk-100/40"}`}>
-                        {tab.description}
-                      </span>
-                    </span>
-                  </div>
-                  {tab.id === "images" && images.length > 0 && (
-                    <span
-                      className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${isActive ? "bg-matt-black-100 text-white-chalk-100" : "bg-white-chalk-100/10 text-white-chalk-100/60"
-                        }`}
-                    >
-                      {images.length}
-                    </span>
-                  )}
-                  {tab.id === "marketplace" && listings.length > 0 && (
-                    <span
-                      className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${isActive ? "bg-matt-black-100 text-white-chalk-100" : "bg-sunflower-100/20 text-sunflower-100"
-                        }`}
-                    >
-                      {listings.length}
-                    </span>
-                  )}
-                  {tab.id === "history" && revisions.length > 0 && (
-                    <span
-                      className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${isActive ? "bg-matt-black-100 text-white-chalk-100" : "bg-munsell-blue-100/20 text-munsell-blue-100"
-                        }`}
-                    >
-                      v{revisions[0]?.revisionNumber || 1}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+        <div className="lg:col-span-1">
+          <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-3 shadow-xl sticky top-24">
+            <ProductFormTabsNav
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              showHistoryTab={true}
+              imagesCount={images.length}
+              listingsCount={listings.length}
+              revisionNumber={revisions[0]?.revisionNumber || 1}
+              hasNameError={!name.trim()}
+              hasCategoryError={selectedCategoryIds.length === 0}
+            />
           </div>
-        </nav>
+        </div>
 
         {/* Right Column: Tab Panels */}
         <div className="lg:col-span-3 space-y-6">
@@ -1439,6 +1397,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                 productName={name}
                 folder="products"
                 maxFiles={24}
+                optionValues={allOptionValues}
               />
             </div>
           )}
@@ -1946,220 +1905,38 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
           {/* TAB 5: CONFIGURATIONS / VARIANTS */}
           {activeTab === "configurations" && (
-            <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl space-y-6">
-              <div className="flex items-center justify-between border-b border-white-chalk-100/10 pb-3">
-                <div className="flex items-center gap-2">
-                  <Boxes className="w-4 h-4 text-sunflower-100" />
-                  <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                    Configurations & Variant Matrix ({variants.length} child SKUs)
-                  </h3>
-                </div>
-                {productType !== "CONFIGURABLE" && (
-                  <span className="text-[11px] text-sunflower-100 bg-sunflower-100/10 px-2 py-0.5 rounded border border-sunflower-100/20">
-                    Switch Product Type to &quot;Configurable&quot; to activate storefront variant swatches
-                  </span>
-                )}
-              </div>
-
-              {/* Generator Box */}
-              <div className="p-4 rounded-xl bg-matt-black-200/40 border border-white-chalk-100/10 space-y-3">
-                <p className="text-xs font-bold text-white-chalk-100">Generate Variant Matrix</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px]">
-                      Option Attribute
-                    </Label>
-                    <Input
-                      type="text"
-                      value={variantOptionName}
-                      onChange={(e) => setVariantOptionName(e.target.value)}
-                      placeholder="e.g. Size, Color, Storage"
-                    />
-                  </div>
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <Label className="text-[11px]">
-                      Values (Comma separated)
-                    </Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="text"
-                        value={variantValuesInput}
-                        onChange={(e) => setVariantValuesInput(e.target.value)}
-                        placeholder="e.g. 64GB, 128GB, 256GB"
-                      />
-                      <Button
-                        type="button"
-                        onClick={handleGenerateVariants}
-                        className="shrink-0"
-                      >
-                        Generate Matrix
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Variants Table */}
-              {variants.length === 0 ? (
-                <div className="text-center py-8 text-white-chalk-100/40 text-xs">
-                  No variants generated. Use the generator above or keep as a Simple standalone product.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead>
-                      <tr className="border-b border-white-chalk-100/10 text-white-chalk-100/40 uppercase tracking-wider text-[10px]">
-                        <th className="py-2 px-3">Variant Name</th>
-                        <th className="py-2 px-3">Child SKU</th>
-                        <th className="py-2 px-3 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white-chalk-100/5">
-                      {variants.map((v, idx) => (
-                        <tr key={idx} className="hover:bg-white-chalk-100/5">
-                          <td className="py-2.5 px-3">
-                            <input
-                              type="text"
-                              value={v.name}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setVariants((prev) =>
-                                  prev.map((item, i) => (i === idx ? { ...item, name: val } : item))
-                                );
-                              }}
-                              className="bg-transparent text-white-chalk-100 font-semibold border-b border-white-chalk-100/10 focus:border-sunflower-100/50 outline-none px-1 py-0.5"
-                            />
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <input
-                              type="text"
-                              value={v.sku}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setVariants((prev) =>
-                                  prev.map((item, i) => (i === idx ? { ...item, sku: val } : item))
-                                );
-                                if (idx === 0) {
-                                  setSku(val);
-                                }
-                              }}
-                              className="bg-transparent font-mono text-white-chalk-100/80 border-b border-white-chalk-100/10 focus:border-sunflower-100/50 outline-none px-1 py-0.5"
-                            />
-                          </td>
-                          <td className="py-2.5 px-3 text-right">
-                            <button
-                              type="button"
-                              onClick={() => removeVariant(idx)}
-                              className="p-1 rounded text-cadmium-red-200 hover:bg-cadmium-red-100/15 cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+            <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl">
+              <ConfigurableOptionsStudio
+                productId={id}
+                options={configurableOptions}
+                setOptions={setConfigurableOptions}
+                variants={variants}
+                setVariants={setVariants}
+                onOptionChangeProductType={setProductType}
+                onSuccessMsg={(msg) => {
+                  setSuccessMsg(msg);
+                  setTimeout(() => setSuccessMsg(null), 4000);
+                }}
+                onErrorMsg={setErrorMsg}
+              />
             </div>
           )}
 
           {/* TAB 6: SEO (SEARCH ENGINE OPTIMIZATION + LIVE SERP PREVIEW) */}
           {activeTab === "seo" && (
-            <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl space-y-6">
-              <div className="flex items-center gap-2 border-b border-white-chalk-100/10 pb-3">
-                <Globe className="w-4 h-4 text-sunflower-100" />
-                <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                  Search Engine Optimization (SEO Metadata)
-                </h3>
-              </div>
-
-              {/* Live Google Search Preview Card */}
-              <div className="p-4 rounded-xl bg-matt-black-300 border border-white-chalk-100/10 space-y-1.5">
-                <div className="flex items-center gap-2 text-[11px] text-white-chalk-100/40">
-                  <span className="w-4 h-4 rounded-full bg-sunflower-100/20 text-sunflower-100 flex items-center justify-center text-[10px] font-bold">
-                    S
-                  </span>
-                  <span>storeframing.com &gt; catalogue &gt; {slug || "product-url"}</span>
-                </div>
-                <div className="text-sm font-medium text-[#8ab4f8] hover:underline cursor-pointer truncate">
-                  {metaTitle || name || "Product Page Title - Storeframing"}
-                </div>
-                <div className="text-xs text-[#bdc1c6] line-clamp-2">
-                  {metaDescription ||
-                    shortDesc?.replace(/<[^>]*>?/gm, "").slice(0, 160) ||
-                    "Discover premium quality products with verified seller guarantees, fast dispatch, and direct warranty support on Storeframing."}
-                </div>
-              </div>
-
-              <div className="space-y-4 pt-2">
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="seo-meta-title">
-                      Meta Title
-                    </Label>
-                    <span className="text-[10px] text-white-chalk-100/40">
-                      {metaTitle.length}/60 characters recommended
-                    </span>
-                  </div>
-                  <Input
-                    id="seo-meta-title"
-                    type="text"
-                    value={metaTitle}
-                    onChange={(e) => setMetaTitle(e.target.value)}
-                    placeholder="Buy Sony WH-1000XM5 in Pakistan - Best Price Guaranteed"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="seo-meta-desc">
-                      Meta Description
-                    </Label>
-                    <span className="text-[10px] text-white-chalk-100/40">
-                      {metaDescription.length}/160 characters recommended
-                    </span>
-                  </div>
-                  <textarea
-                    id="seo-meta-desc"
-                    rows={3}
-                    value={metaDescription}
-                    onChange={(e) => setMetaDescription(e.target.value)}
-                    placeholder="Order genuine Sony wireless noise-cancelling headphones. Free express delivery, official warranty, and flexible payment options across Pakistan."
-                    className="flex w-full rounded-xl border border-white-chalk-100/15 bg-matt-black-200/50 px-3.5 py-2 text-xs text-white-chalk-100 shadow-sm transition-colors placeholder:text-white-chalk-100/35 focus-visible:outline-none focus-visible:border-sunflower-100/60 focus-visible:ring-1 focus-visible:ring-sunflower-100/40 resize-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="seo-keywords">
-                      Meta Keywords
-                    </Label>
-                    <Input
-                      id="seo-keywords"
-                      type="text"
-                      value={metaKeywords}
-                      onChange={(e) => setMetaKeywords(e.target.value)}
-                      placeholder="headphones, noise cancelling, sony audio"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="seo-canonical">
-                      Canonical URL
-                    </Label>
-                    <Input
-                      id="seo-canonical"
-                      type="url"
-                      value={canonicalUrl}
-                      onChange={(e) => setCanonicalUrl(e.target.value)}
-                      placeholder="https://storeframing.com/products/sony-wh-1000xm5"
-                      className="font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ProductSeoCard
+              metaTitle={metaTitle}
+              setMetaTitle={setMetaTitle}
+              metaDescription={metaDescription}
+              setMetaDescription={setMetaDescription}
+              metaKeywords={metaKeywords}
+              setMetaKeywords={setMetaKeywords}
+              canonicalUrl={canonicalUrl}
+              setCanonicalUrl={setCanonicalUrl}
+              productName={name}
+              slug={slug}
+              shortDesc={shortDesc}
+            />
           )}
 
           {/* TAB 7: MARKETPLACE & SELLER OFFERS */}
