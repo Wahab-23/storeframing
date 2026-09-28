@@ -42,14 +42,28 @@ export const POST = withApiHandler(async (request: NextRequest) => {
         images = [],
         seo,
         variants = [],
+        initialOffer,
     } = body;
 
     if (typeof name !== "string" || !name.trim()) {
         throw new AppError(400, "Product name is required.");
     }
 
+    if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+        throw new AppError(400, "At least one category must be selected for the product.");
+    }
+
     if (ownershipType === "SELLER_EXCLUSIVE" && !ownerSellerId) {
         throw new AppError(400, "An exclusive product must have an owner seller.");
+    }
+
+    if (initialOffer) {
+        if (!initialOffer.sellerId) {
+            throw new AppError(400, "Seller store is required for the initial offer.");
+        }
+        if (initialOffer.price === undefined || initialOffer.price === null || Number(initialOffer.price) < 0) {
+            throw new AppError(400, "A valid non-negative offer price is required.");
+        }
     }
 
     const finalSlug = (slug || name)
@@ -130,6 +144,31 @@ export const POST = withApiHandler(async (request: NextRequest) => {
                         productId: newProduct.id,
                         name: v.name,
                         sku: v.sku || `${finalSlug}-${v.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+                    }
+                });
+            }
+        }
+
+        // Create Initial Seller Listing & Inventory if provided
+        if (initialOffer) {
+            const listing = await tx.sellerListing.create({
+                data: {
+                    sellerId: initialOffer.sellerId,
+                    productId: newProduct.id,
+                    sellerSku: initialOffer.sellerSku?.trim() || null,
+                    price: Number(initialOffer.price),
+                    compareAtPrice: initialOffer.compareAtPrice ? Number(initialOffer.compareAtPrice) : null,
+                    costPrice: initialOffer.costPrice ? Number(initialOffer.costPrice) : null,
+                    condition: initialOffer.condition || "NEW",
+                    status: "ACTIVE",
+                }
+            });
+
+            if (initialOffer.stock !== undefined && initialOffer.stock !== null && initialOffer.stock !== "") {
+                await tx.inventory.create({
+                    data: {
+                        listingId: listing.id,
+                        quantity: Math.max(0, Math.floor(Number(initialOffer.stock))),
                     }
                 });
             }

@@ -143,8 +143,8 @@ export default function AdminHeader() {
               <div className="px-4 py-2.5 border-b" style={{ borderColor: "rgba(255, 255, 255, 0.08)" }}>
                 <p className="text-white text-xs font-semibold">Admin User</p>
                 <div className="flex items-center gap-1.5 mt-1">
-                  <Shield className="w-3 h-3 text-[#FCC014]" />
-                  <span className="text-[11px] font-medium text-[#FCC014]">Super Admin</span>
+                  <Shield className="w-3 h-3 text-sunflower-100" />
+                  <span className="text-[11px] font-medium text-sunflower-100">Super Admin</span>
                 </div>
               </div>
 

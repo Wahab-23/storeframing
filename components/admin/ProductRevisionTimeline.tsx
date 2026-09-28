@@ -269,7 +269,7 @@ export function ProductRevisionTimeline({
               {/* Timeline dot */}
               <div
                 className={cn(
-                  "absolute -left-[9px] top-4 w-4 h-4 rounded-full border-2 border-matt-black-100 transition-transform shadow-md",
+                  "absolute -left-2.25 top-4 w-4 h-4 rounded-full border-2 border-matt-black-100 transition-transform shadow-md",
                   idx === 0
                     ? "bg-sunflower-100 ring-2 ring-sunflower-100/30 scale-110"
                     : "bg-white-chalk-100/40 group-hover:bg-sunflower-100"
@@ -353,157 +353,157 @@ export function ProductRevisionTimeline({
                 {/* Expanded Details Body */}
                 {isExpanded && (
                   <div className="border-t border-white-chalk-100/10 p-4 space-y-4 bg-matt-black-300/30 animate-in fade-in-50 duration-200">
-                      <div className="space-y-3">
-                        {diffs.length === 0 ? (
-                          <div className="p-4 rounded-xl bg-matt-black-200/40 border border-white-chalk-100/10 text-center space-y-1">
-                            <p className="text-xs text-white-chalk-100/70 font-medium">
-                              {prevRev
-                                ? "No discrete field delta recorded against previous snapshot."
-                                : "Initial baseline snapshot for this product."}
-                            </p>
-                            <p className="text-[11px] text-white-chalk-100/40">
-                              Switch to &ldquo;Full Snapshot&rdquo; above to inspect the complete saved state at this revision.
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            {diffs.map((diff, dIdx) => (
-                              <div
-                                key={dIdx}
-                                className="p-3 rounded-xl bg-matt-black-200/60 border border-white-chalk-100/10 space-y-2 text-xs"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="font-semibold text-sunflower-100 flex items-center gap-1.5">
-                                    <Tag className="w-3 h-3 text-sunflower-100/70" />
-                                    {diff.label}
-                                  </span>
-                                  <span className="text-[10px] font-mono text-white-chalk-100/40 uppercase">
-                                    {diff.field}
-                                  </span>
-                                </div>
-
-                                {/* Custom Rendering based on type */}
-                                {diff.type === "images" ? (
-                                  /* Images Diff */
-                                  <div className="space-y-2 pt-1">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
-                                      <div className="space-y-1.5 p-2 rounded-lg bg-cadmium-red-100/5 border border-cadmium-red-100/15">
-                                        <span className="text-[10px] font-bold text-cadmium-red-200 uppercase tracking-wide">
-                                          Previous Gallery ({Array.isArray(diff.oldValue) ? diff.oldValue.length : 0})
-                                        </span>
-                                        <div className="flex flex-wrap gap-1.5">
-                                          {Array.isArray(diff.oldValue) && diff.oldValue.length > 0 ? (
-                                            diff.oldValue.map((img: any, i: number) => (
-                                              <div key={i} className="relative w-12 h-12 rounded-md overflow-hidden bg-black/40 border border-white-chalk-100/10">
-                                                <img
-                                                  src={typeof img === "string" ? img : img.url}
-                                                  alt="Old"
-                                                  className="w-full h-full object-cover opacity-60"
-                                                />
-                                              </div>
-                                            ))
-                                          ) : (
-                                            <span className="text-[10px] text-white-chalk-100/40 italic">None</span>
-                                          )}
-                                        </div>
-                                      </div>
-
-                                      <div className="space-y-1.5 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/15">
-                                        <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wide">
-                                          Updated Gallery ({Array.isArray(diff.newValue) ? diff.newValue.length : 0})
-                                        </span>
-                                        <div className="flex flex-wrap gap-1.5">
-                                          {Array.isArray(diff.newValue) && diff.newValue.length > 0 ? (
-                                            diff.newValue.map((img: any, i: number) => (
-                                              <div key={i} className="relative w-12 h-12 rounded-md overflow-hidden bg-black/40 border border-emerald-500/30">
-                                                <img
-                                                  src={typeof img === "string" ? img : img.url}
-                                                  alt="New"
-                                                  className="w-full h-full object-cover"
-                                                />
-                                                {img.isPrimary && (
-                                                  <span className="absolute bottom-0 inset-x-0 bg-sunflower-100 text-matt-black-100 text-[8px] font-extrabold text-center">
-                                                    COVER
-                                                  </span>
-                                                )}
-                                              </div>
-                                            ))
-                                          ) : (
-                                            <span className="text-[10px] text-white-chalk-100/40 italic">None</span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ) : diff.type === "list" ? (
-                                  /* List / Categories Diff */
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
-                                    <div className="p-2 rounded-lg bg-cadmium-red-100/5 border border-cadmium-red-100/15 space-y-1">
-                                      <span className="text-[10px] font-bold text-cadmium-red-200">
-                                        Previous:
-                                      </span>
-                                      <div className="flex flex-wrap gap-1">
-                                        {Array.isArray(diff.oldValue) && diff.oldValue.length > 0 ? (
-                                          diff.oldValue.map((item: any, i: number) => (
-                                            <span key={i} className="px-2 py-0.5 rounded bg-cadmium-red-100/15 text-cadmium-red-200 text-[10px] line-through">
-                                              {String(item)}
-                                            </span>
-                                          ))
-                                        ) : (
-                                          <span className="text-[10px] text-white-chalk-100/40 italic">None</span>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    <div className="p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/15 space-y-1">
-                                      <span className="text-[10px] font-bold text-emerald-400">
-                                        Updated:
-                                      </span>
-                                      <div className="flex flex-wrap gap-1">
-                                        {Array.isArray(diff.newValue) && diff.newValue.length > 0 ? (
-                                          diff.newValue.map((item: any, i: number) => (
-                                            <span key={i} className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 text-[10px] font-medium flex items-center gap-1">
-                                              <Plus className="w-2.5 h-2.5 text-emerald-400" />
-                                              {String(item)}
-                                            </span>
-                                          ))
-                                        ) : (
-                                          <span className="text-[10px] text-white-chalk-100/40 italic">None</span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  /* Text / Badge / Standard Diff */
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                                    <div className="p-2 rounded-lg bg-cadmium-red-100/5 border border-cadmium-red-100/15 flex flex-col gap-0.5">
-                                      <span className="text-[10px] font-bold text-cadmium-red-200 uppercase tracking-wide">
-                                        Before
-                                      </span>
-                                      <span className="text-white-chalk-100/70 line-through break-words font-mono text-[11px]">
-                                        {diff.oldValue !== null && diff.oldValue !== undefined && diff.oldValue !== ""
-                                          ? String(diff.oldValue)
-                                          : "(empty)"}
-                                      </span>
-                                    </div>
-
-                                    <div className="p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/15 flex flex-col gap-0.5">
-                                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wide">
-                                        After
-                                      </span>
-                                      <span className="text-emerald-300 font-semibold break-words font-mono text-[11px]">
-                                        {diff.newValue !== null && diff.newValue !== undefined && diff.newValue !== ""
-                                          ? String(diff.newValue)
-                                          : "(empty)"}
-                                      </span>
-                                    </div>
-                                  </div>
-                                )}
+                    <div className="space-y-3">
+                      {diffs.length === 0 ? (
+                        <div className="p-4 rounded-xl bg-matt-black-200/40 border border-white-chalk-100/10 text-center space-y-1">
+                          <p className="text-xs text-white-chalk-100/70 font-medium">
+                            {prevRev
+                              ? "No discrete field delta recorded against previous snapshot."
+                              : "Initial baseline snapshot for this product."}
+                          </p>
+                          <p className="text-[11px] text-white-chalk-100/40">
+                            Switch to &ldquo;Full Snapshot&rdquo; above to inspect the complete saved state at this revision.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {diffs.map((diff, dIdx) => (
+                            <div
+                              key={dIdx}
+                              className="p-3 rounded-xl bg-matt-black-200/60 border border-white-chalk-100/10 space-y-2 text-xs"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-sunflower-100 flex items-center gap-1.5">
+                                  <Tag className="w-3 h-3 text-sunflower-100/70" />
+                                  {diff.label}
+                                </span>
+                                <span className="text-[10px] font-mono text-white-chalk-100/40 uppercase">
+                                  {diff.field}
+                                </span>
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+
+                              {/* Custom Rendering based on type */}
+                              {diff.type === "images" ? (
+                                /* Images Diff */
+                                <div className="space-y-2 pt-1">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
+                                    <div className="space-y-1.5 p-2 rounded-lg bg-cadmium-red-100/5 border border-cadmium-red-100/15">
+                                      <span className="text-[10px] font-bold text-cadmium-red-200 uppercase tracking-wide">
+                                        Previous Gallery ({Array.isArray(diff.oldValue) ? diff.oldValue.length : 0})
+                                      </span>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {Array.isArray(diff.oldValue) && diff.oldValue.length > 0 ? (
+                                          diff.oldValue.map((img: any, i: number) => (
+                                            <div key={i} className="relative w-12 h-12 rounded-md overflow-hidden bg-black/40 border border-white-chalk-100/10">
+                                              <img
+                                                src={typeof img === "string" ? img : img.url}
+                                                alt="Old"
+                                                className="w-full h-full object-cover opacity-60"
+                                              />
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <span className="text-[10px] text-white-chalk-100/40 italic">None</span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-1.5 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/15">
+                                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wide">
+                                        Updated Gallery ({Array.isArray(diff.newValue) ? diff.newValue.length : 0})
+                                      </span>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {Array.isArray(diff.newValue) && diff.newValue.length > 0 ? (
+                                          diff.newValue.map((img: any, i: number) => (
+                                            <div key={i} className="relative w-12 h-12 rounded-md overflow-hidden bg-black/40 border border-emerald-500/30">
+                                              <img
+                                                src={typeof img === "string" ? img : img.url}
+                                                alt="New"
+                                                className="w-full h-full object-cover"
+                                              />
+                                              {img.isPrimary && (
+                                                <span className="absolute bottom-0 inset-x-0 bg-sunflower-100 text-matt-black-100 text-[8px] font-extrabold text-center">
+                                                  COVER
+                                                </span>
+                                              )}
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <span className="text-[10px] text-white-chalk-100/40 italic">None</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : diff.type === "list" ? (
+                                /* List / Categories Diff */
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
+                                  <div className="p-2 rounded-lg bg-cadmium-red-100/5 border border-cadmium-red-100/15 space-y-1">
+                                    <span className="text-[10px] font-bold text-cadmium-red-200">
+                                      Previous:
+                                    </span>
+                                    <div className="flex flex-wrap gap-1">
+                                      {Array.isArray(diff.oldValue) && diff.oldValue.length > 0 ? (
+                                        diff.oldValue.map((item: any, i: number) => (
+                                          <span key={i} className="px-2 py-0.5 rounded bg-cadmium-red-100/15 text-cadmium-red-200 text-[10px] line-through">
+                                            {String(item)}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <span className="text-[10px] text-white-chalk-100/40 italic">None</span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/15 space-y-1">
+                                    <span className="text-[10px] font-bold text-emerald-400">
+                                      Updated:
+                                    </span>
+                                    <div className="flex flex-wrap gap-1">
+                                      {Array.isArray(diff.newValue) && diff.newValue.length > 0 ? (
+                                        diff.newValue.map((item: any, i: number) => (
+                                          <span key={i} className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 text-[10px] font-medium flex items-center gap-1">
+                                            <Plus className="w-2.5 h-2.5 text-emerald-400" />
+                                            {String(item)}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <span className="text-[10px] text-white-chalk-100/40 italic">None</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                /* Text / Badge / Standard Diff */
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                                  <div className="p-2 rounded-lg bg-cadmium-red-100/5 border border-cadmium-red-100/15 flex flex-col gap-0.5">
+                                    <span className="text-[10px] font-bold text-cadmium-red-200 uppercase tracking-wide">
+                                      Before
+                                    </span>
+                                    <span className="text-white-chalk-100/70 line-through wrap-break-word font-mono text-[11px]">
+                                      {diff.oldValue !== null && diff.oldValue !== undefined && diff.oldValue !== ""
+                                        ? String(diff.oldValue)
+                                        : "(empty)"}
+                                    </span>
+                                  </div>
+
+                                  <div className="p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/15 flex flex-col gap-0.5">
+                                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wide">
+                                      After
+                                    </span>
+                                    <span className="text-emerald-300 font-semibold wrap-break-word font-mono text-[11px]">
+                                      {diff.newValue !== null && diff.newValue !== undefined && diff.newValue !== ""
+                                        ? String(diff.newValue)
+                                        : "(empty)"}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

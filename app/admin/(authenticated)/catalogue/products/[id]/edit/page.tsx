@@ -100,7 +100,12 @@ interface SellerListingItem {
   id: string;
   price: string | number;
   compareAtPrice?: string | number | null;
+  costPrice?: string | number | null;
   sellerSku?: string | null;
+  condition?: string;
+  warrantyTitle?: string | null;
+  warrantyDescription?: string | null;
+  description?: string | null;
   status: string;
   seller: {
     id: string;
@@ -274,12 +279,22 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   const [listings, setListings] = useState<SellerListingItem[]>([]);
   const [updatingListingId, setUpdatingListingId] = useState<string | null>(null);
 
-  // New Offer State
-  const [addingOffer, setAddingOffer] = useState(false);
-  const [newOfferSellerId, setNewOfferSellerId] = useState("");
-  const [newOfferPrice, setNewOfferPrice] = useState("");
-  const [newOfferStock, setNewOfferStock] = useState("");
+  // Inline Offer Editor State (No popups)
+  const [showInlineForm, setShowInlineForm] = useState(false);
+  const [editingListingId, setEditingListingId] = useState<string | null>(null);
+  const [offerSellerId, setOfferSellerId] = useState("");
+  const [offerPrice, setOfferPrice] = useState("");
+  const [offerCompareAtPrice, setOfferCompareAtPrice] = useState("");
+  const [offerCostPrice, setOfferCostPrice] = useState("");
+  const [offerStock, setOfferStock] = useState("");
+  const [offerSellerSku, setOfferSellerSku] = useState("");
+  const [offerCondition, setOfferCondition] = useState("NEW");
+  const [offerWarrantyTitle, setOfferWarrantyTitle] = useState("");
+  const [offerWarrantyDescription, setOfferWarrantyDescription] = useState("");
+  const [offerDescription, setOfferDescription] = useState("");
+  const [offerStatus, setOfferStatus] = useState("ACTIVE");
   const [submittingOffer, setSubmittingOffer] = useState(false);
+  const [deletingListingId, setDeletingListingId] = useState<string | null>(null);
 
   // Tab 8: History & Audit Trail
   const [revisions, setRevisions] = useState<RevisionItem[]>([]);
@@ -380,7 +395,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     ])
       .then(([prodRes, brandsRes, sellersRes]) => {
         if (Array.isArray(brandsRes.data)) setBrands(brandsRes.data);
-        const sellerList = sellersRes.data?.items || sellersRes.data || [];
+        const sellerList = sellersRes.data?.sellers || sellersRes.data?.items || (Array.isArray(sellersRes.data) ? sellersRes.data : []);
         if (Array.isArray(sellerList)) setSellers(sellerList);
 
         const p = prodRes.data;
@@ -580,35 +595,106 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     setVariants((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Quick listing status moderation (Approve / Suspend)
-  const handleAddOffer = async () => {
-    if (!newOfferSellerId || !newOfferPrice) {
-      setErrorMsg("Seller and Price are required to add an offer.");
+  const resetOfferForm = () => {
+    setEditingListingId(null);
+    setOfferSellerId(sellers[0]?.id || "");
+    setOfferPrice("");
+    setOfferCompareAtPrice("");
+    setOfferCostPrice("");
+    setOfferStock("");
+    setOfferSellerSku("");
+    setOfferCondition("NEW");
+    setOfferWarrantyTitle("");
+    setOfferWarrantyDescription("");
+    setOfferDescription("");
+    setOfferStatus("ACTIVE");
+  };
+
+  const openNewOffer = () => {
+    resetOfferForm();
+    if (sellers.length > 0) setOfferSellerId(sellers[0].id);
+    setShowInlineForm(true);
+  };
+
+  const openEditOffer = (l: SellerListingItem) => {
+    setEditingListingId(l.id);
+    setOfferSellerId(l.seller.id);
+    setOfferPrice(String(l.price ?? ""));
+    setOfferCompareAtPrice(l.compareAtPrice ? String(l.compareAtPrice) : "");
+    setOfferCostPrice(l.costPrice ? String(l.costPrice) : "");
+    setOfferStock(l.inventory ? String(l.inventory.quantity) : "");
+    setOfferSellerSku(l.sellerSku || "");
+    setOfferCondition(l.condition || "NEW");
+    setOfferWarrantyTitle(l.warrantyTitle || "");
+    setOfferWarrantyDescription(l.warrantyDescription || "");
+    setOfferDescription(l.description || "");
+    setOfferStatus(l.status || "ACTIVE");
+    setShowInlineForm(true);
+  };
+
+  const handleSaveOffer = async () => {
+    const targetSellerId = ownershipType === "SELLER_EXCLUSIVE" ? ownerSellerId : offerSellerId;
+    if (!targetSellerId) {
+      setErrorMsg("Please select a vendor store for this offer.");
       return;
     }
+    if (!offerPrice || Number(offerPrice) < 0) {
+      setErrorMsg("Please enter a valid non-negative selling price.");
+      return;
+    }
+
     setSubmittingOffer(true);
     setErrorMsg(null);
     setSuccessMsg(null);
-    try {
-      const res = await fetch("/api/admin/listings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sellerId: newOfferSellerId,
-          productId: id,
-          price: newOfferPrice,
-          stock: newOfferStock,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to add offer");
 
-      setSuccessMsg("Offer added successfully!");
-      setAddingOffer(false);
-      setNewOfferSellerId("");
-      setNewOfferPrice("");
-      setNewOfferStock("");
-      
+    try {
+      if (editingListingId) {
+        const res = await fetch(`/api/admin/listings/${editingListingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            price: Number(offerPrice),
+            compareAtPrice: offerCompareAtPrice ? Number(offerCompareAtPrice) : null,
+            costPrice: offerCostPrice ? Number(offerCostPrice) : null,
+            sellerSku: offerSellerSku.trim() || null,
+            stock: offerStock !== "" ? Number(offerStock) : null,
+            condition: offerCondition,
+            warrantyTitle: offerWarrantyTitle.trim() || null,
+            warrantyDescription: offerWarrantyDescription.trim() || null,
+            description: offerDescription.trim() || null,
+            status: offerStatus,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || data.error || "Failed to update offer");
+        setSuccessMsg("Seller offer updated successfully!");
+      } else {
+        const res = await fetch("/api/admin/listings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sellerId: targetSellerId,
+            productId: id,
+            price: Number(offerPrice),
+            compareAtPrice: offerCompareAtPrice ? Number(offerCompareAtPrice) : undefined,
+            costPrice: offerCostPrice ? Number(offerCostPrice) : undefined,
+            sellerSku: offerSellerSku.trim() || undefined,
+            stock: offerStock !== "" ? Number(offerStock) : undefined,
+            condition: offerCondition,
+            warrantyTitle: offerWarrantyTitle.trim() || undefined,
+            warrantyDescription: offerWarrantyDescription.trim() || undefined,
+            description: offerDescription.trim() || undefined,
+            status: offerStatus,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || data.error || "Failed to add offer");
+        setSuccessMsg("Seller offer saved successfully!");
+      }
+
+      setShowInlineForm(false);
+      resetOfferForm();
+
       // Refresh listings
       const listRes = await fetch(`/api/admin/products/${id}`);
       const listData = await listRes.json();
@@ -616,9 +702,33 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         setListings(listData.data.listings);
       }
     } catch (err: any) {
-      setErrorMsg(err.message);
+      setErrorMsg(err.message || "An error occurred while saving the offer.");
     } finally {
       setSubmittingOffer(false);
+    }
+  };
+
+  const handleDeleteOffer = async (listingId: string) => {
+    if (!confirm("Are you sure you want to remove this seller offer?")) return;
+    setDeletingListingId(listingId);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`/api/admin/listings/${listingId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || "Failed to delete offer");
+
+      // Refresh listings
+      const listRes = await fetch(`/api/admin/products/${id}`);
+      const listData = await listRes.json();
+      if (listData.data?.listings) {
+        setListings(listData.data.listings);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Error deleting offer.");
+    } finally {
+      setDeletingListingId(null);
     }
   };
 
@@ -1335,45 +1445,41 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
           {/* TAB 4: PRICING & INVENTORY */}
           {activeTab === "pricing" && (
-            <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl space-y-5">
-              <div className="flex items-center gap-2 border-b border-white-chalk-100/10 pb-3">
-                <DollarSign className="w-4 h-4 text-sunflower-100" />
-                <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                  Pricing and inventory
-                </h3>
-              </div>
-              <div className="rounded-xl border border-sunflower-100/20 bg-sunflower-100/5 p-4 space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-white-chalk-100">Seller offers own the price and stock.</p>
-                  <p className="text-xs leading-5 text-white-chalk-100/60">
-                    Price, compare-at price, cost, and inventory are stored on seller offers, not on the product record. These values are not edited by saving this product form.
-                  </p>
-                  <div className="flex items-center gap-4">
-                    <p className="text-xs text-white-chalk-100/60">
-                      Current offers: {listings.length}.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("marketplace")}
-                      className="text-xs font-semibold text-sunflower-100 hover:text-sunflower-200 underline underline-offset-2"
-                    >
-                      View seller offers
-                    </button>
+            <div className="space-y-6">
+              {ownershipType === "SELLER_EXCLUSIVE" ? (
+                /* EXCLUSIVE SINGLE-VENDOR OFFER CARD */
+                <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl space-y-6">
+                  <div className="flex items-center justify-between border-b border-white-chalk-100/10 pb-3">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-sunflower-100" />
+                      <h3 className="font-sora text-sm font-bold text-white-chalk-100">
+                        Exclusive Vendor Pricing & Stock
+                      </h3>
+                    </div>
+                    <span className="text-[10px] font-mono text-sunflower-100/80 bg-sunflower-100/10 px-2.5 py-0.5 rounded border border-sunflower-100/20 font-bold">
+                      SELLER_EXCLUSIVE Scope
+                    </span>
                   </div>
-                </div>
 
-                {addingOffer ? (
-                  <div className="bg-[#161b22] border border-white-chalk-100/10 p-4 rounded-xl space-y-4 mt-4">
-                    <h4 className="text-sm font-bold text-white-chalk-100">Add New Offer</h4>
+                  <div className="p-4 rounded-xl border border-white-chalk-100/10 bg-matt-black-200/40 text-xs text-white-chalk-100/60 leading-relaxed">
+                    This product is set to <strong>SELLER_EXCLUSIVE</strong> scope. Exactly one designated vendor store owns pricing, stock, and fulfillment for this item.
+                  </div>
+
+                  <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="new-offer-seller">Seller *</Label>
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <Label htmlFor="edit-exclusive-vendor">
+                          Designated Exclusive Vendor Store *
+                        </Label>
                         <Select
-                          id="new-offer-seller"
-                          value={newOfferSellerId}
-                          onChange={(e) => setNewOfferSellerId(e.target.value)}
+                          id="edit-exclusive-vendor"
+                          value={ownerSellerId}
+                          onChange={(e) => {
+                            setOwnerSellerId(e.target.value);
+                            setOfferSellerId(e.target.value);
+                          }}
                         >
-                          <option value="">Select a seller...</option>
+                          <option value="">Select Vendor Store...</option>
                           {sellers.map((s) => (
                             <option key={s.id} value={s.id}>
                               {s.shopName}
@@ -1381,59 +1487,460 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                           ))}
                         </Select>
                       </div>
+
                       <div className="space-y-1.5">
-                        <Label htmlFor="new-offer-price">Price *</Label>
+                        <Label htmlFor="exclusive-price">Selling Price (Rs) *</Label>
                         <Input
-                          id="new-offer-price"
+                          id="exclusive-price"
                           type="number"
                           step="0.01"
                           placeholder="0.00"
-                          value={newOfferPrice}
-                          onChange={(e) => setNewOfferPrice(e.target.value)}
+                          value={offerPrice}
+                          onChange={(e) => setOfferPrice(e.target.value)}
+                          className="font-mono"
                         />
                       </div>
+
                       <div className="space-y-1.5">
-                        <Label htmlFor="new-offer-stock">Stock Quantity</Label>
+                        <Label htmlFor="exclusive-compare-price">Compare-at / Original Price (Rs)</Label>
                         <Input
-                          id="new-offer-stock"
+                          id="exclusive-compare-price"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={offerCompareAtPrice}
+                          onChange={(e) => setOfferCompareAtPrice(e.target.value)}
+                          className="font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="exclusive-cost-price">Cost Price (Rs)</Label>
+                        <Input
+                          id="exclusive-cost-price"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={offerCostPrice}
+                          onChange={(e) => setOfferCostPrice(e.target.value)}
+                          className="font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="exclusive-stock">Stock Quantity (Units)</Label>
+                        <Input
+                          id="exclusive-stock"
                           type="number"
                           placeholder="0"
-                          value={newOfferStock}
-                          onChange={(e) => setNewOfferStock(e.target.value)}
+                          value={offerStock}
+                          onChange={(e) => setOfferStock(e.target.value)}
+                          className="font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="exclusive-sku">Seller SKU (Optional)</Label>
+                        <Input
+                          id="exclusive-sku"
+                          type="text"
+                          placeholder={sku || "SKU-001"}
+                          value={offerSellerSku}
+                          onChange={(e) => setOfferSellerSku(e.target.value)}
+                          className="font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="exclusive-condition">Condition</Label>
+                        <Select
+                          id="exclusive-condition"
+                          value={offerCondition}
+                          onChange={(e) => setOfferCondition(e.target.value)}
+                        >
+                          <option value="NEW">NEW (Brand New Sealed)</option>
+                          <option value="REFURBISHED">REFURBISHED (Factory Certified)</option>
+                          <option value="USED_LIKE_NEW">USED (Like New)</option>
+                          <option value="USED_GOOD">USED (Good Condition)</option>
+                          <option value="OPEN_BOX">OPEN BOX</option>
+                        </Select>
+                      </div>
+
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <Label htmlFor="exclusive-warranty-title">Warranty Title</Label>
+                        <Input
+                          id="exclusive-warranty-title"
+                          type="text"
+                          placeholder="e.g. 1 Year Brand Warranty"
+                          value={offerWarrantyTitle}
+                          onChange={(e) => setOfferWarrantyTitle(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <Label htmlFor="exclusive-warranty-desc">Warranty Details</Label>
+                        <textarea
+                          id="exclusive-warranty-desc"
+                          rows={2}
+                          placeholder="Coverage terms, claim process, exclusions..."
+                          value={offerWarrantyDescription}
+                          onChange={(e) => setOfferWarrantyDescription(e.target.value)}
+                          className="flex w-full rounded-xl border border-white-chalk-100/15 bg-matt-black-200/50 px-3.5 py-2 text-xs text-white-chalk-100 shadow-sm transition-colors placeholder:text-white-chalk-100/35 focus-visible:outline-none focus-visible:border-sunflower-100/60 focus-visible:ring-1 focus-visible:ring-sunflower-100/40 resize-none"
                         />
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 pt-2">
+
+                    <div className="pt-2 flex justify-end">
                       <Button
                         type="button"
-                        size="sm"
                         disabled={submittingOffer}
-                        onClick={handleAddOffer}
+                        onClick={handleSaveOffer}
                       >
-                        {submittingOffer ? "Saving..." : "Save Offer"}
+                        <Save className="w-4 h-4 mr-1.5" />
+                        {submittingOffer ? "Saving Offer..." : "Save Exclusive Pricing & Stock"}
                       </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* PLATFORM MULTI-VENDOR OFFERS STUDIO */
+                <div className="bg-[#161b22] border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white-chalk-100/10 pb-4">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-sunflower-100" />
+                      <div>
+                        <h3 className="font-sora text-sm font-bold text-white-chalk-100">
+                          Multi-Vendor Seller Offers ({listings.length})
+                        </h3>
+                        <p className="text-[11px] text-white-chalk-100/40">
+                          Manage merchant pricing, discounts, stock levels, and buy-box competition
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant={showInlineForm ? "secondary" : "default"}
+                      size="sm"
+                      onClick={() => {
+                        if (showInlineForm && !editingListingId) {
+                          setShowInlineForm(false);
+                        } else {
+                          openNewOffer();
+                        }
+                      }}
+                    >
+                      {showInlineForm && !editingListingId ? (
+                        "Hide Form"
+                      ) : (
+                        <>
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add Vendor Offer
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* INLINE EXPANDABLE OFFER FORM CARD (NO POPUPS) */}
+                  {showInlineForm && (
+                    <div className="p-5 rounded-xl border border-sunflower-100/30 bg-matt-black-200/60 space-y-4">
+                      <div className="flex items-center justify-between border-b border-white-chalk-100/10 pb-2.5">
+                        <div className="flex items-center gap-2">
+                          <Tag className="w-4 h-4 text-sunflower-100" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-white-chalk-100">
+                            {editingListingId ? "Edit Vendor Offer" : "Add New Vendor Offer"}
+                          </h4>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowInlineForm(false);
+                            resetOfferForm();
+                          }}
+                          className="text-white-chalk-100/40 hover:text-white-chalk-100 text-xs font-semibold cursor-pointer"
+                        >
+                          Cancel / Close
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="sm:col-span-2 lg:col-span-3 space-y-1.5">
+                          <Label htmlFor="inline-offer-seller">Vendor / Merchant Store *</Label>
+                          <Select
+                            id="inline-offer-seller"
+                            disabled={!!editingListingId}
+                            value={offerSellerId}
+                            onChange={(e) => setOfferSellerId(e.target.value)}
+                          >
+                            <option value="">Select Vendor Store...</option>
+                            {sellers.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.shopName}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="inline-offer-price">Selling Price (Rs) *</Label>
+                          <Input
+                            id="inline-offer-price"
+                            type="number"
+                            step="0.01"
+                            placeholder="e.g. 4999.00"
+                            value={offerPrice}
+                            onChange={(e) => setOfferPrice(e.target.value)}
+                            className="font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="inline-offer-compare">Compare-at / Original Price (Rs)</Label>
+                          <Input
+                            id="inline-offer-compare"
+                            type="number"
+                            step="0.01"
+                            placeholder="e.g. 5999.00"
+                            value={offerCompareAtPrice}
+                            onChange={(e) => setOfferCompareAtPrice(e.target.value)}
+                            className="font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="inline-offer-cost">Cost Price (Rs)</Label>
+                          <Input
+                            id="inline-offer-cost"
+                            type="number"
+                            step="0.01"
+                            placeholder="e.g. 3500.00"
+                            value={offerCostPrice}
+                            onChange={(e) => setOfferCostPrice(e.target.value)}
+                            className="font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="inline-offer-stock">Stock Quantity (Units)</Label>
+                          <Input
+                            id="inline-offer-stock"
+                            type="number"
+                            placeholder="0"
+                            value={offerStock}
+                            onChange={(e) => setOfferStock(e.target.value)}
+                            className="font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="inline-offer-sku">Seller SKU</Label>
+                          <Input
+                            id="inline-offer-sku"
+                            type="text"
+                            placeholder={sku || "SKU-001"}
+                            value={offerSellerSku}
+                            onChange={(e) => setOfferSellerSku(e.target.value)}
+                            className="font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="inline-offer-condition">Item Condition</Label>
+                          <Select
+                            id="inline-offer-condition"
+                            value={offerCondition}
+                            onChange={(e) => setOfferCondition(e.target.value)}
+                          >
+                            <option value="NEW">NEW (Brand New Sealed)</option>
+                            <option value="REFURBISHED">REFURBISHED (Factory Certified)</option>
+                            <option value="USED_LIKE_NEW">USED (Like New)</option>
+                            <option value="USED_GOOD">USED (Good Condition)</option>
+                            <option value="OPEN_BOX">OPEN BOX</option>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                          <Label htmlFor="inline-offer-warranty-title">Warranty Title</Label>
+                          <Input
+                            id="inline-offer-warranty-title"
+                            type="text"
+                            placeholder="e.g. 1 Year Official Brand Warranty"
+                            value={offerWarrantyTitle}
+                            onChange={(e) => setOfferWarrantyTitle(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                          <Label htmlFor="inline-offer-warranty-desc">Warranty Details</Label>
+                          <textarea
+                            id="inline-offer-warranty-desc"
+                            rows={2}
+                            placeholder="Warranty coverage terms, claim instructions..."
+                            value={offerWarrantyDescription}
+                            onChange={(e) => setOfferWarrantyDescription(e.target.value)}
+                            className="flex w-full rounded-xl border border-white-chalk-100/15 bg-matt-black-200/50 px-3.5 py-2 text-xs text-white-chalk-100 shadow-sm transition-colors placeholder:text-white-chalk-100/35 focus-visible:outline-none focus-visible:border-sunflower-100/60 focus-visible:ring-1 focus-visible:ring-sunflower-100/40 resize-none"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                          <Label htmlFor="inline-offer-status">Offer Status</Label>
+                          <Select
+                            id="inline-offer-status"
+                            value={offerStatus}
+                            onChange={(e) => setOfferStatus(e.target.value)}
+                          >
+                            <option value="ACTIVE">ACTIVE (Published & Live)</option>
+                            <option value="INACTIVE">INACTIVE (Hidden)</option>
+                            <option value="PENDING_REVIEW">PENDING_REVIEW</option>
+                            <option value="SUSPENDED">SUSPENDED</option>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-3 border-t border-white-chalk-100/10">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setShowInlineForm(false);
+                            resetOfferForm();
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="default"
+                          size="sm"
+                          disabled={submittingOffer}
+                          onClick={handleSaveOffer}
+                        >
+                          <Save className="w-4 h-4 mr-1" />
+                          {submittingOffer ? "Saving Offer..." : "Save Seller Offer"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {listings.length === 0 ? (
+                    <div className="text-center py-12 border border-dashed border-white-chalk-100/15 rounded-xl bg-matt-black-200/20 space-y-3">
+                      <Store className="w-10 h-10 text-white-chalk-100/20 mx-auto" />
+                      <div>
+                        <p className="text-xs font-semibold text-white-chalk-100">
+                          No merchant offers attached to this master product yet.
+                        </p>
+                        <p className="text-[11px] text-white-chalk-100/40 mt-1 max-w-md mx-auto">
+                          As an admin, you can attach offers from registered vendor stores with custom pricing, compare-at discounts, and inventory stock.
+                        </p>
+                      </div>
                       <Button
                         type="button"
                         variant="secondary"
                         size="sm"
-                        onClick={() => setAddingOffer(false)}
+                        onClick={openNewOffer}
                       >
-                        Cancel
+                        <Plus className="w-4 h-4 mr-1 text-sunflower-100" />
+                        Attach First Vendor Offer
                       </Button>
                     </div>
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => setAddingOffer(true)}
-                  >
-                    Add Offer
-                  </Button>
-                )}
-              </div>
+                  ) : (
+                    <div className="overflow-x-auto border border-white-chalk-100/10 rounded-xl">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-matt-black-200/60 text-white-chalk-100/40 uppercase tracking-wider text-[10px] border-b border-white-chalk-100/10">
+                          <tr>
+                            <th className="py-3 px-3">Merchant / Store</th>
+                            <th className="py-3 px-3">Seller SKU</th>
+                            <th className="py-3 px-3">Selling Price</th>
+                            <th className="py-3 px-3">Compare At</th>
+                            <th className="py-3 px-3">Stock Units</th>
+                            <th className="py-3 px-3">Condition</th>
+                            <th className="py-3 px-3">Status</th>
+                            <th className="py-3 px-3 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white-chalk-100/5">
+                          {listings.map((l) => (
+                            <tr key={l.id} className="hover:bg-white-chalk-100/5 transition">
+                              <td className="py-3 px-3 font-semibold text-white-chalk-100">
+                                <div className="flex items-center gap-1.5">
+                                  <span>{l.seller?.shopName || "Unknown Seller"}</span>
+                                  {l.seller?.id && (
+                                    <Link
+                                      href={`/admin/sellers/${l.seller.id}/edit`}
+                                      className="text-white-chalk-100/40 hover:text-sunflower-100 transition"
+                                      title="View vendor profile"
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                    </Link>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 font-mono text-white-chalk-100/60">
+                                {l.sellerSku || "—"}
+                              </td>
+                              <td className="py-3 px-3 font-mono font-bold text-sunflower-100">
+                                Rs {Number(l.price).toLocaleString()}
+                              </td>
+                              <td className="py-3 px-3 font-mono text-white-chalk-100/40 line-through">
+                                {l.compareAtPrice ? `Rs ${Number(l.compareAtPrice).toLocaleString()}` : "—"}
+                              </td>
+                              <td className="py-3 px-3 font-mono text-white-chalk-100/80">
+                                {l.inventory ? `${l.inventory.quantity} units` : "Unmanaged"}
+                              </td>
+                              <td className="py-3 px-3 font-mono text-[10px] text-white-chalk-100/70">
+                                {l.condition || "NEW"}
+                              </td>
+                              <td className="py-3 px-3">
+                                <AdminBadge status={l.status} />
+                              </td>
+                              <td className="py-3 px-3 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditOffer(l)}
+                                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white-chalk-100/10 hover:bg-white-chalk-100/20 text-white-chalk-100 transition cursor-pointer"
+                                  >
+                                    Edit
+                                  </button>
+                                  {l.status !== "ACTIVE" ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateListingStatus(l.id, "ACTIVE")}
+                                      disabled={updatingListingId === l.id}
+                                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-pablano-100/15 hover:bg-pablano-100/25 text-pablano-200 border border-pablano-100/30 transition cursor-pointer"
+                                    >
+                                      Approve
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateListingStatus(l.id, "SUSPENDED")}
+                                      disabled={updatingListingId === l.id}
+                                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-cadmium-red-100/15 hover:bg-cadmium-red-100/25 text-cadmium-red-200 border border-cadmium-red-100/30 transition cursor-pointer"
+                                    >
+                                      Suspend
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteOffer(l.id)}
+                                    disabled={deletingListingId === l.id}
+                                    className="p-1 rounded text-cadmium-red-200 hover:bg-cadmium-red-100/15 transition cursor-pointer"
+                                    title="Delete offer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -1848,6 +2355,8 @@ export default function EditProductPage({ params }: EditProductPageProps) {
           )}
         </div>
       </div>
+
+
 
       {/* Delete Confirmation Modal */}
       {deleteModalOpen && (

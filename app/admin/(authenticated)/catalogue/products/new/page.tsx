@@ -133,6 +133,16 @@ export default function NewProductPage() {
   const [variantValuesInput, setVariantValuesInput] = useState("Small, Medium, Large");
   const [variants, setVariants] = useState<VariantItem[]>([]);
 
+  // Tab 4: Pricing & Stock (Initial Offer creation)
+  const [createInitialOffer, setCreateInitialOffer] = useState(false);
+  const [offerSellerId, setOfferSellerId] = useState("");
+  const [offerPrice, setOfferPrice] = useState("");
+  const [offerCompareAtPrice, setOfferCompareAtPrice] = useState("");
+  const [offerCostPrice, setOfferCostPrice] = useState("");
+  const [offerStock, setOfferStock] = useState("");
+  const [offerSellerSku, setOfferSellerSku] = useState("");
+  const [offerCondition, setOfferCondition] = useState("NEW");
+
   // Tab 6: SEO
   const [metaTitle, setMetaTitle] = useState("");
   const [metaDescription, setMetaDescription] = useState("");
@@ -160,7 +170,12 @@ export default function NewProductPage() {
       .then((r) => r.json())
       .then((d) => {
         const sList = d.data?.sellers || d.data || [];
-        if (Array.isArray(sList)) setSellers(sList);
+        if (Array.isArray(sList)) {
+          setSellers(sList);
+          if (sList.length > 0 && !offerSellerId) {
+            setOfferSellerId(sList[0].id);
+          }
+        }
       })
       .catch((e) => console.error("Error loading sellers:", e));
   }, []);
@@ -257,16 +272,45 @@ export default function NewProductPage() {
 
   const handleSubmit = async (e?: React.FormEvent, stayOnPage = false) => {
     if (e) e.preventDefault();
+
+    // Enforce Compulsory Fields
     if (!name.trim()) {
       setActiveTab("general");
-      setErrorMsg("Add a product name before saving.");
+      setErrorMsg("Product Name is required. Please provide a title.");
       return;
     }
+
+    if (!slug.trim()) {
+      setActiveTab("general");
+      setErrorMsg("URL Key / Slug is required for the product.");
+      return;
+    }
+
+    if (selectedCategoryIds.length === 0) {
+      setActiveTab("general");
+      setErrorMsg("Please select at least one category for this product.");
+      return;
+    }
+
     if (ownershipType === "SELLER_EXCLUSIVE" && !ownerSellerId) {
       setActiveTab("marketplace");
       setErrorMsg("Choose the seller who owns this exclusive product before saving.");
       return;
     }
+
+    if (createInitialOffer) {
+      if (!offerSellerId) {
+        setActiveTab("pricing");
+        setErrorMsg("Please select a vendor store for the initial seller offer.");
+        return;
+      }
+      if (!offerPrice || Number(offerPrice) < 0) {
+        setActiveTab("pricing");
+        setErrorMsg("Please enter a valid selling price for the initial seller offer.");
+        return;
+      }
+    }
+
     setSaving(true);
     setErrorMsg(null);
 
@@ -319,6 +363,15 @@ export default function NewProductPage() {
             canonicalUrl: canonicalUrl.trim() || undefined,
           },
           variants: productType === "CONFIGURABLE" ? variants : undefined,
+          initialOffer: createInitialOffer ? {
+            sellerId: offerSellerId,
+            price: Number(offerPrice),
+            compareAtPrice: offerCompareAtPrice ? Number(offerCompareAtPrice) : undefined,
+            costPrice: offerCostPrice ? Number(offerCostPrice) : undefined,
+            stock: offerStock !== "" ? Number(offerStock) : undefined,
+            sellerSku: offerSellerSku.trim() || undefined,
+            condition: offerCondition,
+          } : undefined,
         }),
       });
 
@@ -428,25 +481,37 @@ export default function NewProductPage() {
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
+            const isCompulsoryTab = tab.id === "general";
+            const isTabIncomplete = tab.id === "general" && (!name.trim() || !slug.trim() || selectedCategoryIds.length === 0);
             return (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 aria-current={isActive ? "step" : undefined}
-                className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left transition cursor-pointer ${
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left transition cursor-pointer ${
                   isActive
                     ? "bg-sunflower-100/15 text-sunflower-100 border border-sunflower-100/30"
                     : "text-white-chalk-100/70 hover:text-white-chalk-100 hover:bg-white-chalk-100/5 border border-transparent"
                 }`}
               >
-                <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-sunflower-100" : "text-white-chalk-100/40"}`} />
-                <span className="min-w-0">
-                  <span className="block text-xs font-semibold">{tab.label}</span>
-                  <span className={`block mt-0.5 text-[10px] font-normal ${isActive ? "text-sunflower-100/70" : "text-white-chalk-100/40"}`}>
-                    {tab.description}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-sunflower-100" : "text-white-chalk-100/40"}`} />
+                  <span className="min-w-0">
+                    <span className="block text-xs font-semibold flex items-center gap-1">
+                      {tab.label}
+                      {isCompulsoryTab && <span className="text-cadmium-red-200 font-bold">*</span>}
+                    </span>
+                    <span className={`block mt-0.5 text-[10px] font-normal ${isActive ? "text-sunflower-100/70" : "text-white-chalk-100/40"}`}>
+                      {tab.description}
+                    </span>
                   </span>
-                </span>
+                </div>
+                {isTabIncomplete && (
+                  <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20 shrink-0 ml-1">
+                    Required
+                  </span>
+                )}
               </button>
             );
           })}
@@ -472,7 +537,7 @@ export default function NewProductPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="sm:col-span-2 space-y-1.5">
                       <Label htmlFor="new-product-name">
-                        Product Title / Name *
+                        Product Title / Name <span className="text-cadmium-red-200 font-bold">*</span>
                       </Label>
                       <Input
                         id="new-product-name"
@@ -504,7 +569,7 @@ export default function NewProductPage() {
 
                     <div className="space-y-1.5">
                       <Label htmlFor="new-product-slug">
-                        URL Key / Slug *
+                        URL Key / Slug <span className="text-cadmium-red-200 font-bold">*</span>
                       </Label>
                       <Input
                         id="new-product-slug"
@@ -553,7 +618,7 @@ export default function NewProductPage() {
                     selectedIds={selectedCategoryIds}
                     onChange={setSelectedCategoryIds}
                     categories={categories}
-                    label="Assigned Categories"
+                    label="Assigned Categories *"
                   />
                 </CardContent>
               </Card>
@@ -807,18 +872,167 @@ export default function NewProductPage() {
 
           {/* TAB 4: PRICING & INVENTORY */}
           {activeTab === "pricing" && (
-            <div className="bg-matt-black-100 border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl shadow-black/20 space-y-5">
-              <div className="flex items-center gap-2 border-b border-white-chalk-100/10 pb-3">
-                <DollarSign className="w-4 h-4 text-pablano-200" />
-                <h3 className="font-sora text-sm font-bold text-white-chalk-100">
-                  Pricing and inventory
-                </h3>
+            <div className="bg-matt-black-100 border border-white-chalk-100/10 rounded-2xl p-6 shadow-xl shadow-black/20 space-y-6">
+              <div className="flex items-center justify-between border-b border-white-chalk-100/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-pablano-200" />
+                  <h3 className="font-sora text-sm font-bold text-white-chalk-100">
+                    Pricing & Vendor Offer Setup
+                  </h3>
+                </div>
+                <span className="text-[10px] font-mono text-sunflower-100/80 bg-sunflower-100/10 px-2 py-0.5 rounded border border-sunflower-100/20 font-bold">
+                  Multi-Vendor Marketplace
+                </span>
               </div>
-              <div className="rounded-xl border border-sunflower-100/20 bg-sunflower-100/5 p-4 space-y-2">
-                <p className="text-sm font-semibold text-white-chalk-100">Seller offers own the price and stock.</p>
-                <p className="text-xs leading-5 text-white-chalk-100/60">
-                  This screen creates the shared catalog product. Price, compare-at price, cost, and stock are not product fields and were not saved here. Add an offer for a seller after creating the catalog record.
+
+              {/* Informational architecture note */}
+              <div className="rounded-xl border border-white-chalk-100/10 bg-matt-black-200/40 p-4 space-y-1 text-xs">
+                <div className="flex items-center gap-2 font-bold text-white-chalk-100">
+                  <Store className="w-4 h-4 text-sunflower-100" />
+                  <span>Master Catalog vs. Seller Offers</span>
+                </div>
+                <p className="text-white-chalk-100/60 leading-relaxed text-[11px]">
+                  Master catalog records store global attributes (title, specs, images). Merchants list individual <strong>Offers</strong> containing their own price, discount, SKU, and stock count. You can assign an initial seller offer right now during creation.
                 </p>
+              </div>
+
+              {/* Initial Offer Toggle Card */}
+              <div className="p-5 rounded-xl border border-white-chalk-100/10 bg-matt-black-200/60 space-y-5">
+                <label className="flex items-start gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={createInitialOffer}
+                    onChange={(e) => {
+                      setCreateInitialOffer(e.target.checked);
+                      if (e.target.checked && !offerSellerId && sellers.length > 0) {
+                        setOfferSellerId(sellers[0].id);
+                      }
+                    }}
+                    className="w-4 h-4 mt-0.5 rounded border-white-chalk-100/20 bg-matt-black-300 text-sunflower-100 focus:ring-sunflower-100/40 accent-sunflower-100 cursor-pointer"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-white-chalk-100 block">
+                      Create Initial Vendor Offer with this Product
+                    </span>
+                    <span className="text-[11px] text-white-chalk-100/50 block mt-0.5">
+                      Instantly assign a vendor store, offer price, sale price, and inventory stock quantity upon creation.
+                    </span>
+                  </div>
+                </label>
+
+                {createInitialOffer && (
+                  <div className="pt-4 border-t border-white-chalk-100/10 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <Label htmlFor="offer-seller">
+                          Designated Vendor / Merchant Store *
+                        </Label>
+                        <Select
+                          id="offer-seller"
+                          value={offerSellerId}
+                          onChange={(e) => setOfferSellerId(e.target.value)}
+                        >
+                          <option value="">Select Vendor Store...</option>
+                          {sellers.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.shopName}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="offer-price">
+                          Offer Price (Rs) *
+                        </Label>
+                        <Input
+                          id="offer-price"
+                          type="number"
+                          step="0.01"
+                          placeholder="e.g. 4999.00"
+                          value={offerPrice}
+                          onChange={(e) => setOfferPrice(e.target.value)}
+                          className="font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="offer-compare-price">
+                          Compare-at / Original Price (Rs)
+                        </Label>
+                        <Input
+                          id="offer-compare-price"
+                          type="number"
+                          step="0.01"
+                          placeholder="e.g. 5999.00"
+                          value={offerCompareAtPrice}
+                          onChange={(e) => setOfferCompareAtPrice(e.target.value)}
+                          className="font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="offer-cost-price">
+                          Cost Price (Rs)
+                        </Label>
+                        <Input
+                          id="offer-cost-price"
+                          type="number"
+                          step="0.01"
+                          placeholder="e.g. 3500.00"
+                          value={offerCostPrice}
+                          onChange={(e) => setOfferCostPrice(e.target.value)}
+                          className="font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="offer-stock">
+                          Initial Stock Quantity (Units)
+                        </Label>
+                        <Input
+                          id="offer-stock"
+                          type="number"
+                          placeholder="0"
+                          value={offerStock}
+                          onChange={(e) => setOfferStock(e.target.value)}
+                          className="font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="offer-sku">
+                          Seller SKU (Optional)
+                        </Label>
+                        <Input
+                          id="offer-sku"
+                          type="text"
+                          placeholder={sku || "e.g. STORE-PROD-001"}
+                          value={offerSellerSku}
+                          onChange={(e) => setOfferSellerSku(e.target.value)}
+                          className="font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="offer-condition">
+                          Item Condition
+                        </Label>
+                        <Select
+                          id="offer-condition"
+                          value={offerCondition}
+                          onChange={(e) => setOfferCondition(e.target.value)}
+                        >
+                          <option value="NEW">NEW (Brand New Sealed)</option>
+                          <option value="REFURBISHED">REFURBISHED (Factory Certified)</option>
+                          <option value="USED_LIKE_NEW">USED (Like New)</option>
+                          <option value="USED_GOOD">USED (Good Condition)</option>
+                          <option value="OPEN_BOX">OPEN BOX</option>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
